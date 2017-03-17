@@ -7,6 +7,15 @@ SoundTrackCreatorComponent = Ember.Component.extend
   playerReady: ( ->
     false
   ).property()
+  videoId: ( ->
+    null
+  ).property()
+  start: ( ->
+    null
+  ).property()
+  end: ( ->
+    null
+  ).property()
   setupYoutubeAPI: ( ->
     tag = document.createElement('script')
     tag.src = "//www.youtube.com/player_api"
@@ -17,7 +26,15 @@ SoundTrackCreatorComponent = Ember.Component.extend
   actions:
     playVideo: ->
       @.get('player').playVideo()
+      @.get('player').loadVideoById
+        'videoId': @.get('videoId')
+        'startSeconds': @.get('start')
+        'endSeconds': @.get('end')
   getYouTubePlayerAPIReadyCallback: ->
+    videoSrc = $('#video').attr('src')
+    @.set 'videoId', videoSrc.match(/embed\/([^\/&?]+)/)[1]
+    @.set 'start', videoSrc.match(/[?&]start=([^&]+)/)[1]
+    @.set 'end', videoSrc.match(/[?&]end=([^&]+)/)[1]
     @.set 'player', new YT.Player 'video',
       events:
         'onReady': @.onYouTubePlayerReady.bind(@)
