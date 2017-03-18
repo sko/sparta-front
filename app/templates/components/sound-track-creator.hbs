@@ -1,4 +1,9 @@
 {{yield}}
 {{#if playerReady}}
-<button type="button" {{action "playVideo"}}>Play</button>
+<span style="float: left; margin-left: 10px;">
+<button type="button" {{action "playVideo"}}>Play Orig</button>
+</span>
+<span>
+<button type="button" {{action "playVideo" false}}>Play Dub</button>
+</span>
 {{/if}}

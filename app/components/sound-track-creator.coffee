@@ -1,21 +1,17 @@
 import Ember from 'ember'
 
 SoundTrackCreatorComponent = Ember.Component.extend
-  player: ( ->
-    null
-  ).property()
+  player: null
   playerReady: ( ->
     false
   ).property()
-  videoId: ( ->
-    null
-  ).property()
-  start: ( ->
-    null
-  ).property()
-  end: ( ->
-    null
-  ).property()
+  videoId: null
+  start: -1
+  end: -1
+  orig: true
+  volume: -1
+  videoStarted: false
+  stopAudioCallback: null
   setupYoutubeAPI: ( ->
     try
       AudioContext = window.AudioContext||window.webkitAudioContext;
@@ -29,9 +25,16 @@ SoundTrackCreatorComponent = Ember.Component.extend
     window.onYouTubePlayerAPIReady = @.onYouTubePlayerAPIReady.bind(@)
   ).on('init')
   actions:
-    playVideo: ->
+    playVideo: (orig = true) ->
+      @.set 'orig', orig
+      if orig
+        @.get('player').unMute()
+        @.get('player').setVolume @.get('volume')
+      else
+        @.get('player').mute()
+        #@.get('player').setVolume 0
       @.get('player').playVideo()
-      # preload video for next playo
+      # preload video for next play
       @.get('player').loadVideoById
         'videoId': @.get('videoId')
         'startSeconds': @.get('start')
@@ -45,34 +48,45 @@ SoundTrackCreatorComponent = Ember.Component.extend
       events:
         'onReady': @.onYouTubePlayerReady.bind(@)
         'onStateChange': @.onYouTubePlayerStateChange.bind(@)
+    @.set 'volume', 100 # @.get('player').getVolume()
   onYouTubePlayerReady: ->
-    @.get('player').mute()
-    @.get('player').setVolume 0
     @.set 'playerReady', true
   onYouTubePlayerStateChange: (event) ->
-    if event.data == 1
-      console.log 'yt-player started playing ...'
-      @.playSound "/das_ist_kreuzberg.wav"
+    console.log 'yt-player-state: '+event.data+', videoStarted = '+@.get('videoStarted')
+    switch event.data
+      when 1
+        if (stopAudio = @.get('stopAudioCallback'))?
+          stopAudio()
+        @.set 'videoStarted', true
+        console.log 'yt-player started playing ...'
+        unless @.get('orig')
+          console.log 'starting audio-track ...'
+          @.playSound "/das_ist_kreuzberg.wav"
+      when 0
+        @.set 'videoStarted', false
+        @.set 'stopAudioCallback', null
   playSound: (filePath, callback = null) ->
     if @.get('_audioPlayer')?
       audio1 = @.get('_audioPlayer').createBufferSource()
-      stopCB = () ->
-        audio1.stop()
-        #audio1.currentTime = 0
       bufferLoader = new BufferLoader(
         @.get('_audioPlayer'),
         [
           filePath
         ],
         (bufferList) =>
-            audio1.buffer = bufferList[0]
-            audio1.connect @.get('_audioPlayer.destination')
-            if callback?
-              audio1.onended = () ->
-                  callback {msg: 'finished'}
-            audio1.start(0)
+            if @.get('videoStarted')
+              ((audio1) =>
+                  @.set 'stopAudioCallback', () ->
+                      audio1.stop()
+                      #audio1.currentTime = 0
+              )(audio1)
+              audio1.buffer = bufferList[0]
+              audio1.connect @.get('_audioPlayer.destination')
+              if callback?
+                audio1.onended = () ->
+                    callback {msg: 'finished'}
+              audio1.start(0)
         )
       bufferLoader.load()
-      stopCB
 
 export default SoundTrackCreatorComponent
