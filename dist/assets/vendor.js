@@ -70982,6 +70982,430 @@ function createDeprecatedModule(moduleId) {
 createDeprecatedModule('ember/resolver');
 createDeprecatedModule('resolver');
 
+;(function(f){if(typeof exports==="object"&&typeof module!=="undefined"){module.exports=f()}else if(typeof define==="function"&&define.amd){define([],f)}else{var g;if(typeof window!=="undefined"){g=window}else if(typeof global!=="undefined"){g=global}else if(typeof self!=="undefined"){g=self}else{g=this}g.Recorder = f()}})(function(){var define,module,exports;return (function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof require=="function"&&require;if(!u&&a)return a(o,!0);if(i)return i(o,!0);var f=new Error("Cannot find module '"+o+"'");throw f.code="MODULE_NOT_FOUND",f}var l=n[o]={exports:{}};t[o][0].call(l.exports,function(e){var n=t[o][1][e];return s(n?n:e)},l,l.exports,e,t,n,r)}return n[o].exports}var i=typeof require=="function"&&require;for(var o=0;o<r.length;o++)s(r[o]);return s})({1:[function(require,module,exports){
+"use strict";
+
+module.exports = require("./recorder").Recorder;
+
+},{"./recorder":2}],2:[function(require,module,exports){
+'use strict';
+
+var _createClass = (function () {
+    function defineProperties(target, props) {
+        for (var i = 0; i < props.length; i++) {
+            var descriptor = props[i];descriptor.enumerable = descriptor.enumerable || false;descriptor.configurable = true;if ("value" in descriptor) descriptor.writable = true;Object.defineProperty(target, descriptor.key, descriptor);
+        }
+    }return function (Constructor, protoProps, staticProps) {
+        if (protoProps) defineProperties(Constructor.prototype, protoProps);if (staticProps) defineProperties(Constructor, staticProps);return Constructor;
+    };
+})();
+
+Object.defineProperty(exports, "__esModule", {
+    value: true
+});
+exports.Recorder = undefined;
+
+var _inlineWorker = require('inline-worker');
+
+var _inlineWorker2 = _interopRequireDefault(_inlineWorker);
+
+function _interopRequireDefault(obj) {
+    return obj && obj.__esModule ? obj : { default: obj };
+}
+
+function _classCallCheck(instance, Constructor) {
+    if (!(instance instanceof Constructor)) {
+        throw new TypeError("Cannot call a class as a function");
+    }
+}
+
+var Recorder = exports.Recorder = (function () {
+    function Recorder(source, cfg) {
+        var _this = this;
+
+        _classCallCheck(this, Recorder);
+
+        this.config = {
+            bufferLen: 4096,
+            numChannels: 2,
+            mimeType: 'audio/wav'
+        };
+        this.recording = false;
+        this.callbacks = {
+            getBuffer: [],
+            exportWAV: []
+        };
+
+        Object.assign(this.config, cfg);
+        this.context = source.context;
+        this.node = (this.context.createScriptProcessor || this.context.createJavaScriptNode).call(this.context, this.config.bufferLen, this.config.numChannels, this.config.numChannels);
+
+        this.node.onaudioprocess = function (e) {
+            if (!_this.recording) return;
+
+            var buffer = [];
+            for (var channel = 0; channel < _this.config.numChannels; channel++) {
+                buffer.push(e.inputBuffer.getChannelData(channel));
+            }
+            _this.worker.postMessage({
+                command: 'record',
+                buffer: buffer
+            });
+        };
+
+        source.connect(this.node);
+        this.node.connect(this.context.destination); //this should not be necessary
+
+        var self = {};
+        this.worker = new _inlineWorker2.default(function () {
+            var recLength = 0,
+                recBuffers = [],
+                sampleRate = undefined,
+                numChannels = undefined;
+
+            self.onmessage = function (e) {
+                switch (e.data.command) {
+                    case 'init':
+                        init(e.data.config);
+                        break;
+                    case 'record':
+                        record(e.data.buffer);
+                        break;
+                    case 'exportWAV':
+                        exportWAV(e.data.type);
+                        break;
+                    case 'getBuffer':
+                        getBuffer();
+                        break;
+                    case 'clear':
+                        clear();
+                        break;
+                }
+            };
+
+            function init(config) {
+                sampleRate = config.sampleRate;
+                numChannels = config.numChannels;
+                initBuffers();
+            }
+
+            function record(inputBuffer) {
+                for (var channel = 0; channel < numChannels; channel++) {
+                    recBuffers[channel].push(inputBuffer[channel]);
+                }
+                recLength += inputBuffer[0].length;
+            }
+
+            function exportWAV(type) {
+                var buffers = [];
+                for (var channel = 0; channel < numChannels; channel++) {
+                    buffers.push(mergeBuffers(recBuffers[channel], recLength));
+                }
+                var interleaved = undefined;
+                if (numChannels === 2) {
+                    interleaved = interleave(buffers[0], buffers[1]);
+                } else {
+                    interleaved = buffers[0];
+                }
+                var dataview = encodeWAV(interleaved);
+                var audioBlob = new Blob([dataview], { type: type });
+
+                self.postMessage({ command: 'exportWAV', data: audioBlob });
+            }
+
+            function getBuffer() {
+                var buffers = [];
+                for (var channel = 0; channel < numChannels; channel++) {
+                    buffers.push(mergeBuffers(recBuffers[channel], recLength));
+                }
+                self.postMessage({ command: 'getBuffer', data: buffers });
+            }
+
+            function clear() {
+                recLength = 0;
+                recBuffers = [];
+                initBuffers();
+            }
+
+            function initBuffers() {
+                for (var channel = 0; channel < numChannels; channel++) {
+                    recBuffers[channel] = [];
+                }
+            }
+
+            function mergeBuffers(recBuffers, recLength) {
+                var result = new Float32Array(recLength);
+                var offset = 0;
+                for (var i = 0; i < recBuffers.length; i++) {
+                    result.set(recBuffers[i], offset);
+                    offset += recBuffers[i].length;
+                }
+                return result;
+            }
+
+            function interleave(inputL, inputR) {
+                var length = inputL.length + inputR.length;
+                var result = new Float32Array(length);
+
+                var index = 0,
+                    inputIndex = 0;
+
+                while (index < length) {
+                    result[index++] = inputL[inputIndex];
+                    result[index++] = inputR[inputIndex];
+                    inputIndex++;
+                }
+                return result;
+            }
+
+            function floatTo16BitPCM(output, offset, input) {
+                for (var i = 0; i < input.length; i++, offset += 2) {
+                    var s = Math.max(-1, Math.min(1, input[i]));
+                    output.setInt16(offset, s < 0 ? s * 0x8000 : s * 0x7FFF, true);
+                }
+            }
+
+            function writeString(view, offset, string) {
+                for (var i = 0; i < string.length; i++) {
+                    view.setUint8(offset + i, string.charCodeAt(i));
+                }
+            }
+
+            function encodeWAV(samples) {
+                var buffer = new ArrayBuffer(44 + samples.length * 2);
+                var view = new DataView(buffer);
+
+                /* RIFF identifier */
+                writeString(view, 0, 'RIFF');
+                /* RIFF chunk length */
+                view.setUint32(4, 36 + samples.length * 2, true);
+                /* RIFF type */
+                writeString(view, 8, 'WAVE');
+                /* format chunk identifier */
+                writeString(view, 12, 'fmt ');
+                /* format chunk length */
+                view.setUint32(16, 16, true);
+                /* sample format (raw) */
+                view.setUint16(20, 1, true);
+                /* channel count */
+                view.setUint16(22, numChannels, true);
+                /* sample rate */
+                view.setUint32(24, sampleRate, true);
+                /* byte rate (sample rate * block align) */
+                view.setUint32(28, sampleRate * 4, true);
+                /* block align (channel count * bytes per sample) */
+                view.setUint16(32, numChannels * 2, true);
+                /* bits per sample */
+                view.setUint16(34, 16, true);
+                /* data chunk identifier */
+                writeString(view, 36, 'data');
+                /* data chunk length */
+                view.setUint32(40, samples.length * 2, true);
+
+                floatTo16BitPCM(view, 44, samples);
+
+                return view;
+            }
+        }, self);
+
+        this.worker.postMessage({
+            command: 'init',
+            config: {
+                sampleRate: this.context.sampleRate,
+                numChannels: this.config.numChannels
+            }
+        });
+
+        this.worker.onmessage = function (e) {
+            var cb = _this.callbacks[e.data.command].pop();
+            if (typeof cb == 'function') {
+                cb(e.data.data);
+            }
+        };
+    }
+
+    _createClass(Recorder, [{
+        key: 'record',
+        value: function record() {
+            this.recording = true;
+        }
+    }, {
+        key: 'stop',
+        value: function stop() {
+            this.recording = false;
+        }
+    }, {
+        key: 'clear',
+        value: function clear() {
+            this.worker.postMessage({ command: 'clear' });
+        }
+    }, {
+        key: 'getBuffer',
+        value: function getBuffer(cb) {
+            cb = cb || this.config.callback;
+            if (!cb) throw new Error('Callback not set');
+
+            this.callbacks.getBuffer.push(cb);
+
+            this.worker.postMessage({ command: 'getBuffer' });
+        }
+    }, {
+        key: 'exportWAV',
+        value: function exportWAV(cb, mimeType) {
+            mimeType = mimeType || this.config.mimeType;
+            cb = cb || this.config.callback;
+            if (!cb) throw new Error('Callback not set');
+
+            this.callbacks.exportWAV.push(cb);
+
+            this.worker.postMessage({
+                command: 'exportWAV',
+                type: mimeType
+            });
+        }
+    }], [{
+        key: 'forceDownload',
+        value: function forceDownload(blob, filename) {
+            var url = (window.URL || window.webkitURL).createObjectURL(blob);
+            var link = window.document.createElement('a');
+            link.href = url;
+            link.download = filename || 'output.wav';
+            var click = document.createEvent("Event");
+            click.initEvent("click", true, true);
+            link.dispatchEvent(click);
+        }
+    }]);
+
+    return Recorder;
+})();
+
+exports.default = Recorder;
+
+},{"inline-worker":3}],3:[function(require,module,exports){
+"use strict";
+
+module.exports = require("./inline-worker");
+},{"./inline-worker":4}],4:[function(require,module,exports){
+(function (global){
+"use strict";
+
+var _createClass = (function () { function defineProperties(target, props) { for (var key in props) { var prop = props[key]; prop.configurable = true; if (prop.value) prop.writable = true; } Object.defineProperties(target, props); } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; })();
+
+var _classCallCheck = function (instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } };
+
+var WORKER_ENABLED = !!(global === global.window && global.URL && global.Blob && global.Worker);
+
+var InlineWorker = (function () {
+  function InlineWorker(func, self) {
+    var _this = this;
+
+    _classCallCheck(this, InlineWorker);
+
+    if (WORKER_ENABLED) {
+      var functionBody = func.toString().trim().match(/^function\s*\w*\s*\([\w\s,]*\)\s*{([\w\W]*?)}$/)[1];
+      var url = global.URL.createObjectURL(new global.Blob([functionBody], { type: "text/javascript" }));
+
+      return new global.Worker(url);
+    }
+
+    this.self = self;
+    this.self.postMessage = function (data) {
+      setTimeout(function () {
+        _this.onmessage({ data: data });
+      }, 0);
+    };
+
+    setTimeout(function () {
+      func.call(self);
+    }, 0);
+  }
+
+  _createClass(InlineWorker, {
+    postMessage: {
+      value: function postMessage(data) {
+        var _this = this;
+
+        setTimeout(function () {
+          _this.self.onmessage({ data: data });
+        }, 0);
+      }
+    }
+  });
+
+  return InlineWorker;
+})();
+
+module.exports = InlineWorker;
+}).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
+},{}]},{},[1])(1)
+});
+;(function() {
+  /* globals define, recorder */
+
+  function generateModule(name, values) {
+    define(name, [], function() {
+      'use strict';
+
+      return values;
+    });
+  }
+
+  generateModule('recorder', { 'default': Recorder });
+})();
+;function BufferLoader(context, urlList, callback) {
+  this.context = context;
+  this.urlList = urlList;
+  this.onload = callback;
+  this.bufferList = new Array();
+  this.loadCount = 0;
+}
+
+BufferLoader.prototype.loadBuffer = function(url, index) {
+  // Load buffer asynchronously
+  var request = new XMLHttpRequest();
+  request.open("GET", url, true);
+  request.responseType = "arraybuffer";
+
+  var loader = this;
+
+  request.onload = function() {
+    // Asynchronously decode the audio file data in request.response
+    // console.log('BufferLoader - audio-file/data loaded ...');
+    loader.context.decodeAudioData(
+      request.response,
+      function(buffer) {
+        if (!buffer) {
+          alert('error decoding file data: ' + url);
+          return;
+        }
+        loader.bufferList[index] = buffer;
+        // console.log('BufferLoader - audio-file/data decoded ...');
+        if (++loader.loadCount == loader.urlList.length)
+          loader.onload(loader.bufferList);
+      },
+      function(error) {
+        console.error('decodeAudioData error', error);
+      }
+    );
+  }
+
+  request.onerror = function() {
+    alert('BufferLoader: XHR error');
+  }
+
+  request.send();
+}
+
+BufferLoader.prototype.load = function() {
+  for (var i = 0; i < this.urlList.length; ++i)
+  this.loadBuffer(this.urlList[i], i);
+}
+
+
+;/* Modernizr 2.8.3 (Custom Build) | MIT & BSD
+ * Build: http://modernizr.com/download/#-canvas-canvastext-audio-video-input-inputtypes-localstorage-sessionstorage-geolocation-shiv-prefixed-testprop-testallprops-domprefixes-file_api-forms_fileinput-file_filesystem-getusermedia-img_apng-img_webp-json-network_connection-network_eventsource-network_xhr2
+ */
+;window.Modernizr=function(a,b,c){function x(a){i.cssText=a}function y(a,b){return x(prefixes.join(a+";")+(b||""))}function z(a,b){return typeof a===b}function A(a,b){return!!~(""+a).indexOf(b)}function B(a,b){for(var d in a){var e=a[d];if(!A(e,"-")&&i[e]!==c)return b=="pfx"?e:!0}return!1}function C(a,b,d){for(var e in a){var f=b[a[e]];if(f!==c)return d===!1?a[e]:z(f,"function")?f.bind(d||b):f}return!1}function D(a,b,c){var d=a.charAt(0).toUpperCase()+a.slice(1),e=(a+" "+n.join(d+" ")+d).split(" ");return z(b,"string")||z(b,"undefined")?B(e,b):(e=(a+" "+o.join(d+" ")+d).split(" "),C(e,b,c))}function E(){e.input=function(c){for(var d=0,e=c.length;d<e;d++)r[c[d]]=c[d]in j;return r.list&&(r.list=!!b.createElement("datalist")&&!!a.HTMLDataListElement),r}("autocomplete autofocus list placeholder max min multiple pattern required step".split(" ")),e.inputtypes=function(a){for(var d=0,e,g,h,i=a.length;d<i;d++)j.setAttribute("type",g=a[d]),e=j.type!=="text",e&&(j.value=k,j.style.cssText="position:absolute;visibility:hidden;",/^range$/.test(g)&&j.style.WebkitAppearance!==c?(f.appendChild(j),h=b.defaultView,e=h.getComputedStyle&&h.getComputedStyle(j,null).WebkitAppearance!=="textfield"&&j.offsetHeight!==0,f.removeChild(j)):/^(search|tel)$/.test(g)||(/^(url|email)$/.test(g)?e=j.checkValidity&&j.checkValidity()===!1:e=j.value!=k)),q[a[d]]=!!e;return q}("search tel url email datetime date month week time datetime-local number range color".split(" "))}var d="2.8.3",e={},f=b.documentElement,g="modernizr",h=b.createElement(g),i=h.style,j=b.createElement("input"),k=":)",l={}.toString,m="Webkit Moz O ms",n=m.split(" "),o=m.toLowerCase().split(" "),p={},q={},r={},s=[],t=s.slice,u,v={}.hasOwnProperty,w;!z(v,"undefined")&&!z(v.call,"undefined")?w=function(a,b){return v.call(a,b)}:w=function(a,b){return b in a&&z(a.constructor.prototype[b],"undefined")},Function.prototype.bind||(Function.prototype.bind=function(b){var c=this;if(typeof c!="function")throw new TypeError;var d=t.call(arguments,1),e=function(){if(this instanceof e){var a=function(){};a.prototype=c.prototype;var f=new a,g=c.apply(f,d.concat(t.call(arguments)));return Object(g)===g?g:f}return c.apply(b,d.concat(t.call(arguments)))};return e}),p.canvas=function(){var a=b.createElement("canvas");return!!a.getContext&&!!a.getContext("2d")},p.canvastext=function(){return!!e.canvas&&!!z(b.createElement("canvas").getContext("2d").fillText,"function")},p.geolocation=function(){return"geolocation"in navigator},p.video=function(){var a=b.createElement("video"),c=!1;try{if(c=!!a.canPlayType)c=new Boolean(c),c.ogg=a.canPlayType('video/ogg; codecs="theora"').replace(/^no$/,""),c.h264=a.canPlayType('video/mp4; codecs="avc1.42E01E"').replace(/^no$/,""),c.webm=a.canPlayType('video/webm; codecs="vp8, vorbis"').replace(/^no$/,"")}catch(d){}return c},p.audio=function(){var a=b.createElement("audio"),c=!1;try{if(c=!!a.canPlayType)c=new Boolean(c),c.ogg=a.canPlayType('audio/ogg; codecs="vorbis"').replace(/^no$/,""),c.mp3=a.canPlayType("audio/mpeg;").replace(/^no$/,""),c.wav=a.canPlayType('audio/wav; codecs="1"').replace(/^no$/,""),c.m4a=(a.canPlayType("audio/x-m4a;")||a.canPlayType("audio/aac;")).replace(/^no$/,"")}catch(d){}return c},p.localstorage=function(){try{return localStorage.setItem(g,g),localStorage.removeItem(g),!0}catch(a){return!1}},p.sessionstorage=function(){try{return sessionStorage.setItem(g,g),sessionStorage.removeItem(g),!0}catch(a){return!1}};for(var F in p)w(p,F)&&(u=F.toLowerCase(),e[u]=p[F](),s.push((e[u]?"":"no-")+u));return e.input||E(),e.addTest=function(a,b){if(typeof a=="object")for(var d in a)w(a,d)&&e.addTest(d,a[d]);else{a=a.toLowerCase();if(e[a]!==c)return e;b=typeof b=="function"?b():b,typeof enableClasses!="undefined"&&enableClasses&&(f.className+=" "+(b?"":"no-")+a),e[a]=b}return e},x(""),h=j=null,function(a,b){function l(a,b){var c=a.createElement("p"),d=a.getElementsByTagName("head")[0]||a.documentElement;return c.innerHTML="x<style>"+b+"</style>",d.insertBefore(c.lastChild,d.firstChild)}function m(){var a=s.elements;return typeof a=="string"?a.split(" "):a}function n(a){var b=j[a[h]];return b||(b={},i++,a[h]=i,j[i]=b),b}function o(a,c,d){c||(c=b);if(k)return c.createElement(a);d||(d=n(c));var g;return d.cache[a]?g=d.cache[a].cloneNode():f.test(a)?g=(d.cache[a]=d.createElem(a)).cloneNode():g=d.createElem(a),g.canHaveChildren&&!e.test(a)&&!g.tagUrn?d.frag.appendChild(g):g}function p(a,c){a||(a=b);if(k)return a.createDocumentFragment();c=c||n(a);var d=c.frag.cloneNode(),e=0,f=m(),g=f.length;for(;e<g;e++)d.createElement(f[e]);return d}function q(a,b){b.cache||(b.cache={},b.createElem=a.createElement,b.createFrag=a.createDocumentFragment,b.frag=b.createFrag()),a.createElement=function(c){return s.shivMethods?o(c,a,b):b.createElem(c)},a.createDocumentFragment=Function("h,f","return function(){var n=f.cloneNode(),c=n.createElement;h.shivMethods&&("+m().join().replace(/[\w\-]+/g,function(a){return b.createElem(a),b.frag.createElement(a),'c("'+a+'")'})+");return n}")(s,b.frag)}function r(a){a||(a=b);var c=n(a);return s.shivCSS&&!g&&!c.hasCSS&&(c.hasCSS=!!l(a,"article,aside,dialog,figcaption,figure,footer,header,hgroup,main,nav,section{display:block}mark{background:#FF0;color:#000}template{display:none}")),k||q(a,c),a}var c="3.7.0",d=a.html5||{},e=/^<|^(?:button|map|select|textarea|object|iframe|option|optgroup)$/i,f=/^(?:a|b|code|div|fieldset|h1|h2|h3|h4|h5|h6|i|label|li|ol|p|q|span|strong|style|table|tbody|td|th|tr|ul)$/i,g,h="_html5shiv",i=0,j={},k;(function(){try{var a=b.createElement("a");a.innerHTML="<xyz></xyz>",g="hidden"in a,k=a.childNodes.length==1||function(){b.createElement("a");var a=b.createDocumentFragment();return typeof a.cloneNode=="undefined"||typeof a.createDocumentFragment=="undefined"||typeof a.createElement=="undefined"}()}catch(c){g=!0,k=!0}})();var s={elements:d.elements||"abbr article aside audio bdi canvas data datalist details dialog figcaption figure footer header hgroup main mark meter nav output progress section summary template time video",version:c,shivCSS:d.shivCSS!==!1,supportsUnknownElements:k,shivMethods:d.shivMethods!==!1,type:"default",shivDocument:r,createElement:o,createDocumentFragment:p};a.html5=s,r(b)}(this,b),e._version=d,e._domPrefixes=o,e._cssomPrefixes=n,e.testProp=function(a){return B([a])},e.testAllProps=D,e.prefixed=function(a,b,c){return b?D(a,b,c):D(a,"pfx")},e}(this,this.document),Modernizr.addTest("filereader",function(){return!!(window.File&&window.FileList&&window.FileReader)}),Modernizr.addTest("fileinput",function(){var a=document.createElement("input");return a.type="file",!a.disabled}),Modernizr.addTest("getusermedia",!!Modernizr.prefixed("getUserMedia",navigator)),Modernizr.addTest("filesystem",!!Modernizr.prefixed("requestFileSystem",window)),function(){if(!Modernizr.canvas)return!1;var a=new Image,b=document.createElement("canvas"),c=b.getContext("2d");a.onload=function(){Modernizr.addTest("apng",function(){return typeof b.getContext=="undefined"?!1:(c.drawImage(a,0,0),c.getImageData(0,0,1,1).data[3]===0)})},a.src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAACGFjVEwAAAABAAAAAcMq2TYAAAANSURBVAiZY2BgYPgPAAEEAQB9ssjfAAAAGmZjVEwAAAAAAAAAAQAAAAEAAAAAAAAAAAD6A+gBAbNU+2sAAAARZmRBVAAAAAEImWNgYGBgAAAABQAB6MzFdgAAAABJRU5ErkJggg=="}(),function(){var a=new Image;a.onerror=function(){Modernizr.addTest("webp",!1)},a.onload=function(){Modernizr.addTest("webp",function(){return a.width==1})},a.src="data:image/webp;base64,UklGRiwAAABXRUJQVlA4ICAAAAAUAgCdASoBAAEAL/3+/3+CAB/AAAFzrNsAAP5QAAAAAA=="}(),Modernizr.addTest("json",!!window.JSON&&!!JSON.parse),Modernizr.addTest("lowbandwidth",function(){var a=navigator.connection||{type:0};return a.type==3||a.type==4||/^[23]g$/.test(a.type)}),Modernizr.addTest("eventsource",!!window.EventSource),Modernizr.addTest("xhr2","FormData"in window);
 ;define('ember-ajax/ajax-request', ['exports', 'ember', 'ember-ajax/mixins/ajax-request'], function (exports, _ember, _emberAjaxMixinsAjaxRequest) {
   'use strict';
 
@@ -74384,7 +74808,10 @@ define("ember-data/-private/system/model/internal-model", ["exports", "ember", "
   var InternalModel = (function () {
     function InternalModel(modelName, id, store, data) {
       this.id = id;
-      this._internalId = InternalModelReferenceId++;
+
+      // this ensure ordered set can quickly identify this as unique
+      this[_ember["default"].GUID_KEY] = InternalModelReferenceId++ + 'internal-model';
+
       this.store = store;
       this._data = data || new _emberDataPrivateSystemEmptyObject["default"]();
       this.modelName = modelName;
@@ -84512,6 +84939,8 @@ define('ember-data/-private/system/store/container-instance-cache', ['exports', 
 
   var ContainerInstanceCache = (function () {
     function ContainerInstanceCache(owner, store) {
+      this.isDestroying = false;
+      this.isDestroyed = false;
       this._owner = owner;
       this._store = store;
       this._namespaces = {
@@ -84591,11 +85020,10 @@ define('ember-data/-private/system/store/container-instance-cache', ['exports', 
     }, {
       key: 'destroy',
       value: function destroy() {
+        this.isDestroying = true;
         this.destroyCache(this._namespaces.adapter);
         this.destroyCache(this._namespaces.serializer);
-        this._namespaces = null;
-        this._store = null;
-        this._owner = null;
+        this.isDestroyed = true;
       }
     }, {
       key: 'toString',
@@ -92240,7 +92668,7 @@ define('ember-data/transform', ['exports', 'ember'], function (exports, _ember) 
 define("ember-data/version", ["exports"], function (exports) {
   "use strict";
 
-  exports["default"] = "2.12.0";
+  exports["default"] = "2.12.2";
 });
 define("ember-inflector/index", ["exports", "ember", "ember-inflector/lib/system", "ember-inflector/lib/ext/string"], function (exports, _ember, _emberInflectorLibSystem, _emberInflectorLibExtString) {
   /* global define, module */
@@ -92312,10 +92740,11 @@ define('ember-inflector/lib/helpers/pluralize', ['exports', 'ember-inflector', '
    * @method pluralize
    * @param {Number|Property} [count] count of objects
    * @param {String|Property} word word to pluralize
-  */
-  exports['default'] = (0, _emberInflectorLibUtilsMakeHelper['default'])(function (params) {
+   */
+  exports['default'] = (0, _emberInflectorLibUtilsMakeHelper['default'])(function (params, hash) {
     var count = undefined,
-        word = undefined;
+        word = undefined,
+        withoutCount = false;
 
     if (params.length === 1) {
       word = params[0];
@@ -92324,11 +92753,15 @@ define('ember-inflector/lib/helpers/pluralize', ['exports', 'ember-inflector', '
       count = params[0];
       word = params[1];
 
+      if (hash["without-count"]) {
+        withoutCount = hash["without-count"];
+      }
+
       if (parseFloat(count) !== 1) {
         word = (0, _emberInflector.pluralize)(word);
       }
 
-      return count + " " + word;
+      return withoutCount ? word : count + " " + word;
     }
   });
 });
@@ -92452,8 +92885,12 @@ define('ember-inflector/lib/system/inflector', ['exports', 'ember'], function (e
   
     ```javascript
     var rules = {
-      plurals:  [ /$/, 's' ],
-      singular: [ /\s$/, '' ],
+      plurals:  [
+        [ /$/, 's' ]
+      ],
+      singular: [
+        [ /\s$/, '' ]
+      ],
       irregularPairs: [
         [ 'cow', 'kine' ]
       ],

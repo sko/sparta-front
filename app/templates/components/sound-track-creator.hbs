@@ -1,9 +1,32 @@
 {{yield}}
+
+{{#if dubSpecReady}}
+<iframe id="video" width="560" height="315" src="//www.youtube.com/embed/{{videoId}}?start={{start}}&end={{end}}&showinfo=0&controls=0&version=3&enablejsapi=1&html5=1" frameborder="0" allowfullscreen />
+<br>
+{{/if}}
+
 {{#if playerReady}}
-<span style="float: left; margin-left: 10px;">
-<button type="button" {{action "playVideo"}}>Play Orig</button>
+<span style="float: left; margin-left: 0px 10px 0px 10px;">
+<button id="play_orig" type="button" {{action "playVideo"}}>Play Orig</button>
+</span>
+<span style="float: left; margin-left: 0px 10px 0px 10px;">
+<button id="play_dub" type="button" {{action "playVideo" false}}>Play Dub</button>
 </span>
 <span>
-<button type="button" {{action "playVideo" false}}>Play Dub</button>
+{{#unless recording}}
+<button id="rec_ctrl" type="button" {{action "startRecording"}}>Start Record Audio</button>
+{{else}}
+<button style="background-color:red;" type="button" {{action "stopRecording"}}>Stop Record Audio</button>
+{{/unless}}
+</span>
+<span style="margin: 0px 0px 0px 20px;">
+<button type="button" {{action "shareVideo"}}>Share Video</button>
 </span>
 {{/if}}
+
+<br><br>
+VideoId: <input id="videoId" value="{{videoId}}"><br>
+Start Seconds: <input id="startSecs" value="{{start}}"><br>
+End Seconds: <input id="endSecs" value="{{end}}"><br>
+<button type="button" {{action "setVideoId" false}}>Set Cutting Data</button>
+<br>

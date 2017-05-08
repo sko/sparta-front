@@ -42,8 +42,12 @@ module.exports = function(environment) {
     ENV.APP.rootElement = '#ember-testing';
   }
 
-  if (environment === 'production') {
+  if (environment === 'stage') {
+    ENV.rootURL = '/sparta/';
+  }
 
+  if (environment === 'production') {
+    ENV.rootURL = '/sparta/';
   }
 
   return ENV;
