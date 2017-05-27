@@ -22,28 +22,84 @@ define('sparta/app', ['exports', 'ember', 'sparta/resolver', 'ember-load-initial
 
   exports['default'] = App;
 });
-define('sparta/components/sound-track-creator', ['exports', 'ember', 'recorder'], function (exports, _ember, _recorder) {
+define('sparta/components/sound-track-creator', ['exports', 'recorder'], function (exports, _recorder) {
   var SoundTrackCreatorComponent;
 
-  SoundTrackCreatorComponent = _ember['default'].Component.extend({
-    recordAudio: _ember['default'].inject.service(),
-    backendAdapter: _ember['default'].inject.service(),
-    audioContext: _ember['default'].computed.alias('recordAudio.audioContext'),
+  SoundTrackCreatorComponent = Ember.Component.extend({
+    recordAudio: Ember.inject.service(),
+    backendAdapter: Ember.inject.service(),
+    application: (function () {
+      return Ember.getOwner(this).lookup('controller:application');
+    }).property(),
+    skipSample: false,
+    audioContext: Ember.computed.alias('recordAudio.audioContext'),
     dubSpecReady: false,
+    displayControls: true,
     initialPlayed: false,
+    useAudioTag: (function () {
+      return false;
+    }).property(),
     player: null,
     playerReady: (function () {
       return false;
     }).property(),
+    sharedDubTrackUrls: [],
     videoId: null,
+    origDubTrackStartSecs: -1,
     start: -1,
-    end: -1,
+    end: 1,
+    dubTrackDelay: 0,
+    innerDubTrackDelay: 0,
+    newStart: -1,
+    newEnd: 1,
+    newDubTrackDelay: 0,
+    newInnerDubTrackDelay: 0,
+    changeObserver: Ember.observer('start', 'newStart', 'end', 'newEnd', 'dubTrackDelay', 'newDubTrackDelay', 'innerDubTrackDelay', 'newInnerDubTrackDelay', function () {
+      var newCuttingData, newDubTrackDelay;
+      newCuttingData = false;
+      if (this.get('start') !== parseInt(this.get('newStart'))) {
+        $('#startSecs').css('background-color', 'red');
+        newCuttingData = true;
+      } else {
+        $('#startSecs').css('background-color', '');
+      }
+      if (this.get('end') !== parseInt(this.get('newEnd'))) {
+        $('#endSecs').css('background-color', 'red');
+        newCuttingData = true;
+      } else {
+        $('#endSecs').css('background-color', '');
+      }
+      if (newCuttingData) {
+        $('#setCuttingData').css('background-color', 'red');
+      } else {
+        $('#setCuttingData').css('background-color', '');
+      }
+      newDubTrackDelay = false;
+      if (this.get('dubTrackDelay') !== parseInt(this.get('newDubTrackDelay'))) {
+        $('#dubTrackDelayMillis').css('background-color', 'red');
+        newDubTrackDelay = true;
+      } else {
+        $('#dubTrackDelayMillis').css('background-color', '');
+      }
+      if (this.get('innerDubTrackDelay') !== parseInt(this.get('newInnerDubTrackDelay'))) {
+        $('#innerDubTrackDelayMillis').css('background-color', 'red');
+        newDubTrackDelay = true;
+      } else {
+        $('#innerDubTrackDelayMillis').css('background-color', '');
+      }
+      if (newDubTrackDelay) {
+        return $('#setDubTrackDelay').css('background-color', 'red');
+      } else {
+        return $('#setDubTrackDelay').css('background-color', '');
+      }
+    }),
     orig: true,
-    volume: -1,
+    volume: null,
     videoStarted: false,
     stopAudioCallback: null,
     setupAudioTracking: (function () {
       var AudioContext, constraints, dubIdMatch, error, gUM, url;
+      this.set('application.sTC', this);
       try {
         AudioContext = window.AudioContext || window.webkitAudioContext;
         this.set('audioContext', new AudioContext());
@@ -52,19 +108,51 @@ define('sparta/components/sound-track-creator', ['exports', 'ember', 'recorder']
         console.log('no audio-player-support', error);
       }
       if (Modernizr.getusermedia) {
-        if ((dubIdMatch = location.search.match(/[?&]dubId=([^&]+)/)) != null) {
-          this.set('dubTrackJSON', null);
+        if (this.get('skipSample')) {
+          this.set('dubSpecReady', true);
+          this.set('initialPlayed', true);
+          this.set('displayControls', false);
+          this.set('start', 0);
+          this.set('end', 1);
+          this.set('newStart', 0);
+          this.set('newEnd', 1);
+          if ($('#iframe_api').length >= 1) {
+            Ember.run.schedule("afterRender", (function (_this) {
+              return function () {
+                return _this.initPlayer();
+              };
+            })(this));
+          } else {
+            Ember.run.schedule("afterRender", (function (_this) {
+              return function () {
+                return _this.setupYoutubeAPI();
+              };
+            })(this));
+          }
+        } else {
+          dubIdMatch = location.search.match(/[?&]dubId=([^&]+)/) || [null, '-1'];
           url = $('#dub-data-url').val().replace(/:dubId/, dubIdMatch[1]);
           this.get('backendAdapter').request(url, 'GET').then((function (_this) {
             return function (dubData) {
               _this.set('videoId', dubData.video_id);
+              _this.set('origDubTrackStartSecs', dubData.start_secs + dubData.delay_millis / 1000);
               _this.set('start', dubData.start_secs);
               _this.set('end', dubData.end_secs);
-              _this.createDownloadLink(dubData.dub_track_url);
-              _this.set('dubSpecReady', true);
-              if (_this.get('player') != null && !_this.get('initialPlayed')) {
-                return _this.send('playVideo', false);
+              _this.set('dubTrackDelay', dubData.delay_millis);
+              _this.set('innerDubTrackDelay', dubData.inner_delay_millis);
+              _this.set('newStart', dubData.start_secs);
+              _this.set('newEnd', dubData.end_secs);
+              _this.set('newDubTrackDelay', dubData.delay_millis);
+              _this.set('newInnerDubTrackDelay', dubData.inner_delay_millis);
+              if (_this.get('useAudioTag')) {
+                _this.createDownloadLink(dubData.dub_track_url);
+              } else {
+                _this.initAudioBuffer(_this.set('dubTrackUrl', dubData.dub_track_url));
               }
+              _this.set('dubSpecReady', true);
+              return Ember.run.schedule("afterRender", function () {
+                return _this.setupYoutubeAPI();
+              });
             };
           })(this));
         }
@@ -84,56 +172,63 @@ define('sparta/components/sound-track-creator', ['exports', 'ember', 'recorder']
           };
         })(this), (function (_this) {
           return function (e) {
-            console.log('Reeeejected!', e);
-            return alert('Reeeejected!');
+            return console.log('Reeeejected!', e);
           };
         })(this));
       }
     }).on('init'),
-    setupYoutubeAPI: (function () {
-      var firstScriptTag, tag;
-      tag = document.createElement('script');
-      tag.src = "//www.youtube.com/player_api";
-      firstScriptTag = document.getElementsByTagName('script')[0];
-      firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
-      return window.onYouTubePlayerAPIReady = this.onYouTubePlayerAPIReady.bind(this);
-    }).on('init'),
-    initialDubTrack: (function () {
-      var dubData;
-      if (this.get('dubTrackJSON') != null) {
-        dubData = JSON.parse(this.get('dubTrackJSON'));
-        this.set('videoId', dubData.video_id);
-        this.set('start', dubData.start_secs);
-        this.set('end', dubData.end_secs);
-        this.createDownloadLink(dubData.dub_track_url);
-        this.set('dubSpecReady', true);
-        if (this.get('player') != null && !this.get('initialPlayed')) {
-          return this.send('playVideo', false);
-        }
-      }
-    }).on('didInsertElement'),
     actions: {
       setVideoId: function setVideoId() {
+        var extraDubTrackDelay, newDubTrackDelay, noVideoChange, startSecsChange;
+        if (parseInt($('#startSecs').val()) >= parseInt($('#endSecs').val())) {
+          $('#endSecs').val(parseInt($('#startSecs').val()) + this.get('end') - this.get('start'));
+        }
+        if (!this.get('displayControls')) {
+          this.set('displayControls', true);
+        }
+        noVideoChange = this.get('videoId') === $('#videoId').val();
+        if (noVideoChange && this.get('start') > this.get('origDubTrackStartSecs')) {
+          extraDubTrackDelay = (this.get('start') - this.get('origDubTrackStartSecs')) * 1000;
+        } else {
+          extraDubTrackDelay = 0;
+        }
         this.set('videoId', $('#videoId').val());
+        startSecsChange = parseInt($('#startSecs').val()) - this.get('start');
         this.set('start', parseInt($('#startSecs').val()));
         this.set('end', parseInt($('#endSecs').val()));
-        return $('#video').attr('src', $('#video').attr('src').replace(/embed\/[^?]+/, 'embed/' + $('#videoId').val()).replace(/([?&])start=[^&]+/, '$1start=' + $('#startSecs').val()).replace(/([?&])end=[^&]+/, '$1end=' + $('#endSecs').val()));
+        this.set('newStart', parseInt($('#startSecs').val()));
+        this.set('newEnd', parseInt($('#endSecs').val()));
+        if (noVideoChange) {
+          if ((newDubTrackDelay = this.get('dubTrackDelay') - startSecsChange * 1000 - extraDubTrackDelay) < 0) {
+            if (this.get('dubTrackDelay') !== 0) {
+              this.set('dubTrackDelay', 0);
+              this.set('newDubTrackDelay', 0);
+            }
+          } else {
+            this.set('dubTrackDelay', newDubTrackDelay);
+            this.set('newDubTrackDelay', newDubTrackDelay);
+          }
+        } else {
+          this.set('dubTrackDelay', 0);
+          this.set('innerDubTrackDelay', 0);
+          this.set('newDubTrackDelay', 0);
+          this.set('newInnerDubTrackDelay', 0);
+        }
+        this.get('player').destroy();
+        return this.initPlayer();
+      },
+      setDubTrackSecs: function setDubTrackSecs() {
+        this.set('dubTrackDelay', parseInt($('#dubTrackDelayMillis').val()));
+        return this.set('innerDubTrackDelay', parseInt($('#innerDubTrackDelayMillis').val()));
       },
       playVideo: function playVideo(orig) {
         if (orig == null) {
           orig = true;
         }
-        if (!this.get('initialPlayed')) {
-          this.set('initialPlayed', true);
-        }
         this.set('orig', orig);
         if (orig) {
           this.get('player').unMute();
-          this.get('player').setVolume(this.get('volume') || 100);
-        } else {
-          this.get('player').mute();
         }
-        this.get('player').playVideo();
         return this.get('player').loadVideoById({
           'videoId': this.get('videoId'),
           'startSeconds': this.get('start'),
@@ -141,17 +236,25 @@ define('sparta/components/sound-track-creator', ['exports', 'ember', 'recorder']
         });
       },
       startRecording: function startRecording() {
+        this.set('dubTrackDelay', 0);
+        this.set('innerDubTrackDelay', 0);
         this.set('recording', true);
         return this.send('playVideo', false);
       },
       stopRecording: function stopRecording() {
         console.log('stop recording audio-track ...');
         this.set('recording', false);
+        this.set('recorded', true);
         this.get('audioRecorder').stop();
+        this.get('player').unMute();
         this.get('audioRecorder').exportWAV((function (_this) {
           return function (blob) {
             _this.set('audioBlob', blob);
-            return _this.createDownloadLink(_this.set('dubTrackUrl', URL.createObjectURL(blob)));
+            if (_this.get('useAudioTag')) {
+              return _this.createDownloadLink(_this.set('dubTrackUrl', URL.createObjectURL(blob)));
+            } else {
+              return _this.initAudioBuffer(_this.set('dubTrackUrl', URL.createObjectURL(blob)));
+            }
           };
         })(this));
         return this.get('audioRecorder').clear();
@@ -169,11 +272,31 @@ define('sparta/components/sound-track-creator', ['exports', 'ember', 'recorder']
               } else {
                 dubTrackUrl = location.href + '?dubId=' + dubData.id;
               }
-              return $('body').prepend("<a href='" + dubTrackUrl + "' target='dubTrack'>" + dubTrackUrl + "</a><br>");
+              if (_this.get('application.isMobile')) {
+                return _this.set('sharedDubTrackUrls', _this.get('sharedDubTrackUrls').concat([{
+                  videoId: _this.get('videoId'),
+                  dubTrackUrl: dubTrackUrl,
+                  whatsAppText: encodeURI('DubTrack => ' + dubTrackUrl)
+                }]));
+              } else {
+                return _this.set('sharedDubTrackUrls', _this.get('sharedDubTrackUrls').concat([{
+                  videoId: _this.get('videoId'),
+                  dubTrackUrl: dubTrackUrl
+                }]));
+              }
             });
           };
         })(this);
         return reader.readAsDataURL(this.get('audioBlob'));
+      },
+      copyToClipboard: function copyToClipboard(selector) {
+        var copyDatainput;
+        copyDatainput = document.querySelector(selector);
+        copyDatainput.select();
+        return document.execCommand('copy');
+      },
+      newDubTrack: function newDubTrack() {
+        return this.get('router').transitionTo('new');
       }
     },
     initAudioBuffer: function initAudioBuffer(audioFileUrl) {
@@ -184,60 +307,107 @@ define('sparta/components/sound-track-creator', ['exports', 'ember', 'recorder']
           if (_this.get('videoStarted')) {
             $('#rec_ctrl').attr("disabled", true);
             _this.get('player').unMute();
-            _this.get('player').setVolume(_this.get('volume') || 100);
             return _this.initAudioBuffer(audioFileUrl);
           }
         };
       })(this)));
     },
-    onYouTubePlayerAPIReady: function onYouTubePlayerAPIReady() {
-      this.set('player', new YT.Player('video', {
+    setupYoutubeAPI: function setupYoutubeAPI() {
+      var firstScriptTag, tag;
+      window.onYouTubeIframeAPIReady = this.onYouTubeIframeAPIReady.bind(this);
+      tag = document.createElement('script');
+      tag.id = "iframe_api";
+      tag.src = "//www.youtube.com/iframe_api";
+      firstScriptTag = document.getElementsByTagName('script')[0];
+      return firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
+    },
+    onYouTubeIframeAPIReady: function onYouTubeIframeAPIReady() {
+      console.log('youTubeIframeAPIReady ...');
+      return this.initPlayer();
+    },
+    initPlayer: function initPlayer() {
+      return this.set('player', new YT.Player('video', {
+        width: 560,
+        height: 315,
+        videoId: this.get('videoId'),
         events: {
           'onReady': this.onYouTubePlayerReady.bind(this),
           'onStateChange': this.onYouTubePlayerStateChange.bind(this)
+        },
+        playerVars: {
+          start: this.get('start'),
+          end: this.get('end'),
+          showinfo: 0,
+          controls: 0,
+          version: 3,
+          enablejsapi: 1,
+          html5: 1
         }
       }));
-      return this.set('volume', 100);
     },
     onYouTubePlayerReady: function onYouTubePlayerReady() {
-      this.set('playerReady', true);
-      if (this.get('dubSpecReady') && !this.get('initialPlayed')) {
-        return this.send('playVideo', false);
-      }
+      console.log('youTubePlayerReady ...');
+      return this.set('playerReady', true);
     },
     onYouTubePlayerStateChange: function onYouTubePlayerStateChange(event) {
       var stopAudio;
-      console.log('yt-player-state: ' + event.data + ', videoStarted = ' + this.get('videoStarted') + ', playerState = ' + this.get('player').getPlayerState() + ', videoLoaded = ' + this.get('player').getVideoLoadedFraction() + ', recording = ' + this.get('recording'));
+      console.log('yt-player-state: ' + event.data + ', videoStarted = ' + this.get('videoStarted') + ', videoLoaded = ' + this.get('player').getVideoLoadedFraction() + ', recording = ' + this.get('recording') + ', initialPlayed = ' + this.get('initialPlayed') + ', orig = ' + this.get('orig'));
       switch (event.data) {
         case 1:
+          if (!this.get('initialPlayed')) {
+            if (this.get('orig') == null || this.get('orig')) {
+              this.set('orig', false);
+            }
+          }
           $('#play_orig').attr("disabled", true);
           $('#play_dub').attr("disabled", true);
-          if ((stopAudio = this.get('stopAudioCallback')) != null) {
+          if ((stopAudio = this.get('stopAudioCallback')) != null && this.get('audioBufferStarted')) {
             stopAudio();
           }
           this.set('videoStarted', true);
-          console.log('yt-player started playing ...');
+          console.log('yt-player started playing, orig = ' + this.get('orig') + ' ...');
           if (!this.get('orig')) {
             if (this.get('player').getVideoLoadedFraction() !== 0) {
               if (this.get('recording')) {
+                this.get('player').mute();
                 console.log('start recording audio-track ...');
-                return this.get('audioRecorder').record();
+                return this.get('audioRecorder').record(300);
               } else {
-                console.log('start playing audio-track; player.startSeconds = ' + this.get('start') + ', player.getCurrentTime = ' + this.get('player').getCurrentTime());
-                this.set('audioBufferStarted', true);
-                $('audio')[0].currentTime = 0.2;
-                console.log('currentTime = ' + $('audio')[0].currentTime);
-                return $('audio')[0].play();
+                if (this.get('dubTrackDelay') <= 0) {
+                  return this.startDubTrack(this.get('innerDubTrackDelay'));
+                } else {
+                  return window.setTimeout(this.startDubTrack.bind(this), this.get('dubTrackDelay'));
+                }
               }
             }
           }
           break;
         case 0:
+          if (!this.get('initialPlayed')) {
+            this.set('initialPlayed', true);
+          }
           this.set('videoStarted', false);
           this.set('stopAudioCallback', null);
           $('#play_orig').attr("disabled", false);
           $('#play_dub').attr("disabled", false);
-          return $('#rec_ctrl').attr("disabled", false);
+          $('#rec_ctrl').attr("disabled", false);
+          return this.set('recorded', false);
+      }
+    },
+    startDubTrack: function startDubTrack() {
+      if (this.get('innerDubTrackDelay') <= 0) {
+        this.get('player').mute();
+      } else {
+        window.setTimeout(this.get('player').mute.bind(this.get('player')), this.get('innerDubTrackDelay'));
+      }
+      console.log('start playing audio-track; player.startSeconds = ' + this.get('start') + ', player.getCurrentTime = ' + this.get('player').getCurrentTime());
+      if (this.get('useAudioTag')) {
+        $('audio')[0].currentTime = 0.2;
+        console.log('currentTime = ' + $('audio')[0].currentTime);
+        return $('audio')[0].play();
+      } else {
+        this.get('audioBuffer').start();
+        return this.set('audioBufferStarted', true);
       }
     },
     createDownloadLink: function createDownloadLink(url) {
@@ -252,10 +422,9 @@ define('sparta/components/sound-track-creator', ['exports', 'ember', 'recorder']
       return $('audio').on('ended', (function (_this) {
         return function () {
           if (_this.get('dubSpecReady')) {
-            console.log('continue with original audio ...');
+            console.log('continue with original audio, videoStarted = ' + _this.get('videoStarted'));
             $('#rec_ctrl').attr("disabled", true);
-            _this.get('player').unMute();
-            return _this.get('player').setVolume(_this.get('volume') || 100);
+            return _this.get('player').unMute();
           }
         };
       })(this));
@@ -271,7 +440,6 @@ define('sparta/components/sound-track-creator', ['exports', 'ember', 'recorder']
         bufferLoader = new BufferLoader(this.get('audioContext'), [filePath], (function (_this) {
           return function (bufferList) {
             _this.set('stopAudioCallback', function () {
-              debugger;
               return audio1.stop();
             });
             audio1.buffer = bufferList[0];
@@ -298,6 +466,8 @@ define('sparta/components/sound-track-creator', ['exports', 'ember', 'recorder']
       formData.append('dub_data[video_id]', this.get('videoId'));
       formData.append('dub_data[start_secs]', this.get('start'));
       formData.append('dub_data[end_secs]', this.get('end'));
+      formData.append('dub_data[delay_millis]', this.get('dubTrackDelay'));
+      formData.append('dub_data[inner_delay_millis]', this.get('innerDubTrackDelay'));
       formData.append('dub_data[dub_track]', this.get('dubTrackData'));
       return formData;
     },
@@ -326,6 +496,33 @@ define('sparta/components/sound-track-creator', ['exports', 'ember', 'recorder']
 
   exports['default'] = SoundTrackCreatorComponent;
 });
+define("sparta/controllers/application", ["exports"], function (exports) {
+  exports["default"] = Ember.Controller.extend({
+    backendUrlPrefix: Sparta.backendUrlPrefix,
+    isMobile: navigator.userAgent.match(/Mobile|webOS/) != null
+  });
+});
+define("sparta/controllers/index", ["exports"], function (exports) {
+  exports["default"] = Ember.Controller.extend();
+});
+define("sparta/controllers/new", ["exports"], function (exports) {
+  exports["default"] = Ember.Controller.extend();
+});
+define("sparta/helpers/and", ["exports"], function (exports) {
+  exports["default"] = Ember.Helper.helper(function (params) {
+    var i, len, param;
+    if (!(params != null && params.length >= 2)) {
+      return false;
+    }
+    for (i = 0, len = params.length; i < len; i++) {
+      param = params[i];
+      if (!param) {
+        return false;
+      }
+    }
+    return true;
+  });
+});
 define('sparta/helpers/app-version', ['exports', 'ember', 'sparta/config/environment', 'ember-cli-app-version/utils/regexp'], function (exports, _ember, _spartaConfigEnvironment, _emberCliAppVersionUtilsRegexp) {
   exports.appVersion = appVersion;
   var version = _spartaConfigEnvironment['default'].APP.version;
@@ -346,6 +543,16 @@ define('sparta/helpers/app-version', ['exports', 'ember', 'sparta/config/environ
 
   exports['default'] = _ember['default'].Helper.helper(appVersion);
 });
+define('sparta/helpers/append', ['exports'], function (exports) {
+  exports['default'] = Ember.Helper.helper(function (params) {
+    var sep;
+    if (!(params != null && params.length === 3)) {
+      return '';
+    }
+    sep = params[0].toString().length >= 1 && params[1].toString().length >= 1 ? params[2] : '';
+    return new Ember.String.htmlSafe(params[0].toString() + sep + params[1].toString());
+  });
+});
 define('sparta/helpers/pluralize', ['exports', 'ember-inflector/lib/helpers/pluralize'], function (exports, _emberInflectorLibHelpersPluralize) {
   exports['default'] = _emberInflectorLibHelpersPluralize['default'];
 });
@@ -360,6 +567,18 @@ define('sparta/initializers/app-version', ['exports', 'ember-cli-app-version/ini
     name: 'App Version',
     initialize: (0, _emberCliAppVersionInitializerFactory['default'])(name, version)
   };
+});
+define('sparta/initializers/component-router-injector', ['exports'], function (exports) {
+  var CRIInit;
+
+  CRIInit = {
+    name: 'component-router-injector',
+    initialize: function initialize(application) {
+      return application.inject('component', 'router', 'router:main');
+    }
+  };
+
+  exports['default'] = CRIInit;
 });
 define('sparta/initializers/container-debug-adapter', ['exports', 'ember-resolver/container-debug-adapter'], function (exports, _emberResolverContainerDebugAdapter) {
   exports['default'] = {
@@ -524,6 +743,20 @@ define("sparta/instance-initializers/ember-data", ["exports", "ember-data/-priva
     initialize: _emberDataPrivateInstanceInitializersInitializeStoreService["default"]
   };
 });
+define('sparta/mixins/player-route-deactivator', ['exports'], function (exports) {
+  exports['default'] = Ember.Mixin.create({
+    application: (function () {
+      return Ember.getOwner(this).lookup('controller:application');
+    }).property(),
+    deactivate: function deactivate() {
+      this._super();
+      if (this.get('application.sTC.player') != null) {
+        this.get('application.sTC.player').destroy();
+      }
+      return true;
+    }
+  });
+});
 define('sparta/resolver', ['exports', 'ember-resolver'], function (exports, _emberResolver) {
   exports['default'] = _emberResolver['default'];
 });
@@ -534,9 +767,29 @@ define('sparta/router', ['exports', 'ember', 'sparta/config/environment'], funct
     rootURL: _spartaConfigEnvironment['default'].rootURL
   });
 
-  Router.map(function () {});
+  Router.map(function () {
+    this.route('new', { path: '/new' });
+  });
 
   exports['default'] = Router;
+});
+define("sparta/routes/index", ["exports", "sparta/mixins/player-route-deactivator"], function (exports, _spartaMixinsPlayerRouteDeactivator) {
+  exports["default"] = Ember.Route.extend(_spartaMixinsPlayerRouteDeactivator["default"], {
+    model: function model() {
+      return {
+        todo: 'load user environment'
+      };
+    }
+  });
+});
+define('sparta/routes/new', ['exports'], function (exports) {
+  exports['default'] = Ember.Route.extend({
+    model: function model() {
+      return {
+        todo: 'load user environment'
+      };
+    }
+  });
 });
 define('sparta/services/ajax', ['exports', 'ember-ajax/services/ajax'], function (exports, _emberAjaxServicesAjax) {
   Object.defineProperty(exports, 'default', {
@@ -546,10 +799,8 @@ define('sparta/services/ajax', ['exports', 'ember-ajax/services/ajax'], function
     }
   });
 });
-define('sparta/services/backend_adapter', ['exports', 'ember'], function (exports, _ember) {
-  var BackendAdapterService;
-
-  BackendAdapterService = _ember['default'].Service.extend({
+define('sparta/services/backend_adapter', ['exports'], function (exports) {
+  exports['default'] = Ember.Service.extend({
     request: function request(url, method, params, callbackContext) {
       var promise;
       if (params == null) {
@@ -559,7 +810,7 @@ define('sparta/services/backend_adapter', ['exports', 'ember'], function (export
         callbackContext = null;
       }
       console.log('BackendAdapter - request: url = ' + url + ', method = ' + method + ', callbackContext? = ' + (callbackContext != null));
-      promise = new _ember['default'].RSVP.Promise(function (resolve, reject) {
+      promise = new Ember.RSVP.Promise(function (resolve, reject) {
         var options;
         options = {};
         if (params != null) {
@@ -590,7 +841,7 @@ define('sparta/services/backend_adapter', ['exports', 'ember'], function (export
           options.success = callbackContext.success.bind(callbackContext.context);
           options.error = callbackContext.error.bind(callbackContext.context);
         }
-        return _ember['default'].$.ajax(url, options);
+        return Ember.$.ajax(url, options);
       });
       if (callbackContext != null) {
         promise.then(callbackContext.success, callbackContext.error);
@@ -600,8 +851,6 @@ define('sparta/services/backend_adapter', ['exports', 'ember'], function (export
       }
     }
   });
-
-  exports['default'] = BackendAdapterService;
 });
 define('sparta/services/record_audio', ['exports', 'ember'], function (exports, _ember) {
   var RecordAudio;
@@ -663,10 +912,16 @@ define('sparta/services/record_audio', ['exports', 'ember'], function (exports, 
   exports['default'] = RecordAudio;
 });
 define("sparta/templates/application", ["exports"], function (exports) {
-  exports["default"] = Ember.HTMLBars.template({ "id": "gUrFUpez", "block": "{\"statements\":[[\"comment\",\"\\n<input id=\\\"publish-url\\\" type=\\\"hidden\\\" value=\\\"//localhost:3003/sparta/dub_track\\\" />\\n<input id=\\\"dub-data-url\\\" type=\\\"hidden\\\" value=\\\"//localhost:3003/sparta/dub_track/:dubId\\\" />\\n\"],[\"text\",\"\\n\"],[\"comment\",\"\"],[\"text\",\"\\n\"],[\"open-element\",\"input\",[]],[\"static-attr\",\"id\",\"publish-url\"],[\"static-attr\",\"type\",\"hidden\"],[\"static-attr\",\"value\",\"/sparta/dub_track\"],[\"flush-element\"],[\"close-element\"],[\"text\",\"\\n\"],[\"open-element\",\"input\",[]],[\"static-attr\",\"id\",\"dub-data-url\"],[\"static-attr\",\"type\",\"hidden\"],[\"static-attr\",\"value\",\"/sparta/dub_track/:dubId\"],[\"flush-element\"],[\"close-element\"],[\"text\",\"\\n\\n\"],[\"append\",[\"helper\",[\"sound-track-creator\"],null,[[\"dubTrackJSON\"],[\"{\\\"video_id\\\": \\\"haNzpiLYdEk\\\", \\\"start_secs\\\": 49, \\\"end_secs\\\": 55, \\\"dub_track_url\\\": \\\"das_ist_kreuzberg.wav\\\"}\"]]],false],[\"text\",\"\\n\"]],\"locals\":[],\"named\":[],\"yields\":[],\"blocks\":[],\"hasPartials\":false}", "meta": { "moduleName": "sparta/templates/application.hbs" } });
+  exports["default"] = Ember.HTMLBars.template({ "id": "96y+5Y2t", "block": "{\"statements\":[[\"open-element\",\"input\",[]],[\"static-attr\",\"id\",\"publish-url\"],[\"static-attr\",\"type\",\"hidden\"],[\"dynamic-attr\",\"value\",[\"concat\",[[\"unknown\",[\"backendUrlPrefix\"]],\"sparta/dub_track\"]]],[\"flush-element\"],[\"close-element\"],[\"text\",\"\\n\"],[\"open-element\",\"input\",[]],[\"static-attr\",\"id\",\"dub-data-url\"],[\"static-attr\",\"type\",\"hidden\"],[\"dynamic-attr\",\"value\",[\"concat\",[[\"unknown\",[\"backendUrlPrefix\"]],\"sparta/dub_track/:dubId\"]]],[\"flush-element\"],[\"close-element\"],[\"text\",\"\\n\"],[\"append\",[\"unknown\",[\"outlet\"]],false],[\"text\",\"\\n\"]],\"locals\":[],\"named\":[],\"yields\":[],\"blocks\":[],\"hasPartials\":false}", "meta": { "moduleName": "sparta/templates/application.hbs" } });
 });
 define("sparta/templates/components/sound-track-creator", ["exports"], function (exports) {
-  exports["default"] = Ember.HTMLBars.template({ "id": "QHF9xHr/", "block": "{\"statements\":[[\"yield\",\"default\"],[\"text\",\"\\n\\n\"],[\"block\",[\"if\"],[[\"get\",[\"dubSpecReady\"]]],null,3],[\"text\",\"\\n\"],[\"block\",[\"if\"],[[\"get\",[\"playerReady\"]]],null,2],[\"text\",\"\\n\"],[\"open-element\",\"br\",[]],[\"flush-element\"],[\"close-element\"],[\"open-element\",\"br\",[]],[\"flush-element\"],[\"close-element\"],[\"text\",\"\\nVideoId: \"],[\"open-element\",\"input\",[]],[\"static-attr\",\"id\",\"videoId\"],[\"dynamic-attr\",\"value\",[\"concat\",[[\"unknown\",[\"videoId\"]]]]],[\"flush-element\"],[\"close-element\"],[\"open-element\",\"br\",[]],[\"flush-element\"],[\"close-element\"],[\"text\",\"\\nStart Seconds: \"],[\"open-element\",\"input\",[]],[\"static-attr\",\"id\",\"startSecs\"],[\"dynamic-attr\",\"value\",[\"concat\",[[\"unknown\",[\"start\"]]]]],[\"flush-element\"],[\"close-element\"],[\"open-element\",\"br\",[]],[\"flush-element\"],[\"close-element\"],[\"text\",\"\\nEnd Seconds: \"],[\"open-element\",\"input\",[]],[\"static-attr\",\"id\",\"endSecs\"],[\"dynamic-attr\",\"value\",[\"concat\",[[\"unknown\",[\"end\"]]]]],[\"flush-element\"],[\"close-element\"],[\"open-element\",\"br\",[]],[\"flush-element\"],[\"close-element\"],[\"text\",\"\\n\"],[\"open-element\",\"button\",[]],[\"static-attr\",\"type\",\"button\"],[\"modifier\",[\"action\"],[[\"get\",[null]],\"setVideoId\",false]],[\"flush-element\"],[\"text\",\"Set Cutting Data\"],[\"close-element\"],[\"text\",\"\\n\"],[\"open-element\",\"br\",[]],[\"flush-element\"],[\"close-element\"],[\"text\",\"\\n\"]],\"locals\":[],\"named\":[],\"yields\":[\"default\"],\"blocks\":[{\"statements\":[[\"open-element\",\"button\",[]],[\"static-attr\",\"style\",\"background-color:red;\"],[\"static-attr\",\"type\",\"button\"],[\"modifier\",[\"action\"],[[\"get\",[null]],\"stopRecording\"]],[\"flush-element\"],[\"text\",\"Stop Record Audio\"],[\"close-element\"],[\"text\",\"\\n\"]],\"locals\":[]},{\"statements\":[[\"open-element\",\"button\",[]],[\"static-attr\",\"id\",\"rec_ctrl\"],[\"static-attr\",\"type\",\"button\"],[\"modifier\",[\"action\"],[[\"get\",[null]],\"startRecording\"]],[\"flush-element\"],[\"text\",\"Start Record Audio\"],[\"close-element\"],[\"text\",\"\\n\"]],\"locals\":[]},{\"statements\":[[\"open-element\",\"span\",[]],[\"static-attr\",\"style\",\"float: left; margin-left: 0px 10px 0px 10px;\"],[\"flush-element\"],[\"text\",\"\\n\"],[\"open-element\",\"button\",[]],[\"static-attr\",\"id\",\"play_orig\"],[\"static-attr\",\"type\",\"button\"],[\"modifier\",[\"action\"],[[\"get\",[null]],\"playVideo\"]],[\"flush-element\"],[\"text\",\"Play Orig\"],[\"close-element\"],[\"text\",\"\\n\"],[\"close-element\"],[\"text\",\"\\n\"],[\"open-element\",\"span\",[]],[\"static-attr\",\"style\",\"float: left; margin-left: 0px 10px 0px 10px;\"],[\"flush-element\"],[\"text\",\"\\n\"],[\"open-element\",\"button\",[]],[\"static-attr\",\"id\",\"play_dub\"],[\"static-attr\",\"type\",\"button\"],[\"modifier\",[\"action\"],[[\"get\",[null]],\"playVideo\",false]],[\"flush-element\"],[\"text\",\"Play Dub\"],[\"close-element\"],[\"text\",\"\\n\"],[\"close-element\"],[\"text\",\"\\n\"],[\"open-element\",\"span\",[]],[\"flush-element\"],[\"text\",\"\\n\"],[\"block\",[\"unless\"],[[\"get\",[\"recording\"]]],null,1,0],[\"close-element\"],[\"text\",\"\\n\"],[\"open-element\",\"span\",[]],[\"static-attr\",\"style\",\"margin: 0px 0px 0px 20px;\"],[\"flush-element\"],[\"text\",\"\\n\"],[\"open-element\",\"button\",[]],[\"static-attr\",\"type\",\"button\"],[\"modifier\",[\"action\"],[[\"get\",[null]],\"shareVideo\"]],[\"flush-element\"],[\"text\",\"Share Video\"],[\"close-element\"],[\"text\",\"\\n\"],[\"close-element\"],[\"text\",\"\\n\"]],\"locals\":[]},{\"statements\":[[\"open-element\",\"iframe\",[]],[\"static-attr\",\"id\",\"video\"],[\"static-attr\",\"width\",\"560\"],[\"static-attr\",\"height\",\"315\"],[\"dynamic-attr\",\"src\",[\"concat\",[\"//www.youtube.com/embed/\",[\"unknown\",[\"videoId\"]],\"?start=\",[\"unknown\",[\"start\"]],\"&end=\",[\"unknown\",[\"end\"]],\"&showinfo=0&controls=0&version=3&enablejsapi=1&html5=1\"]]],[\"static-attr\",\"frameborder\",\"0\"],[\"static-attr\",\"allowfullscreen\",\"\"],[\"flush-element\"],[\"close-element\"],[\"text\",\"\\n\"],[\"open-element\",\"br\",[]],[\"flush-element\"],[\"close-element\"],[\"text\",\"\\n\"]],\"locals\":[]}],\"hasPartials\":false}", "meta": { "moduleName": "sparta/templates/components/sound-track-creator.hbs" } });
+  exports["default"] = Ember.HTMLBars.template({ "id": "uywc/rhQ", "block": "{\"statements\":[[\"yield\",\"default\"],[\"text\",\"\\n\\n\"],[\"block\",[\"each\"],[[\"get\",[\"sharedDubTrackUrls\"]]],null,10],[\"text\",\"\\n\"],[\"block\",[\"if\"],[[\"get\",[\"dubSpecReady\"]]],null,8],[\"text\",\"\\n\"],[\"block\",[\"if\"],[[\"get\",[\"playerReady\"]]],null,7],[\"text\",\"\\n\"],[\"block\",[\"if\"],[[\"get\",[\"initialPlayed\"]]],null,1,0]],\"locals\":[],\"named\":[],\"yields\":[\"default\"],\"blocks\":[{\"statements\":[[\"comment\",\"\\n<button type=\\\"button\\\" {{action \\\"newDubTrack\\\"}}>Create new Dub-Track</button>\\n\"],[\"text\",\"\\n\"]],\"locals\":[]},{\"statements\":[[\"open-element\",\"br\",[]],[\"flush-element\"],[\"close-element\"],[\"open-element\",\"br\",[]],[\"flush-element\"],[\"close-element\"],[\"text\",\"\\nVideoId: \"],[\"open-element\",\"input\",[]],[\"static-attr\",\"id\",\"videoId\"],[\"dynamic-attr\",\"value\",[\"concat\",[[\"unknown\",[\"videoId\"]]]]],[\"flush-element\"],[\"close-element\"],[\"open-element\",\"br\",[]],[\"flush-element\"],[\"close-element\"],[\"text\",\"\\nVideo Start Seconds: \"],[\"append\",[\"helper\",[\"input\"],null,[[\"type\",\"min\",\"step\",\"id\",\"value\"],[\"number\",\"0\",\"1\",\"startSecs\",[\"get\",[\"newStart\"]]]]],false],[\"text\",\" (current value: \"],[\"append\",[\"unknown\",[\"start\"]],false],[\"text\",\"; change will update Dub-Track Delay Milliseconds)\"],[\"open-element\",\"br\",[]],[\"flush-element\"],[\"close-element\"],[\"text\",\"\\nVideo End Seconds: \"],[\"append\",[\"helper\",[\"input\"],null,[[\"type\",\"min\",\"step\",\"id\",\"value\"],[\"number\",\"0\",\"1\",\"endSecs\",[\"get\",[\"newEnd\"]]]]],false],[\"text\",\" (current value: \"],[\"append\",[\"unknown\",[\"end\"]],false],[\"text\",\")\"],[\"open-element\",\"br\",[]],[\"flush-element\"],[\"close-element\"],[\"text\",\"\\n\"],[\"open-element\",\"button\",[]],[\"static-attr\",\"type\",\"button\"],[\"static-attr\",\"id\",\"setCuttingData\"],[\"modifier\",[\"action\"],[[\"get\",[null]],\"setVideoId\"]],[\"flush-element\"],[\"text\",\"Set Cutting Data\"],[\"close-element\"],[\"text\",\"\\n\"],[\"open-element\",\"br\",[]],[\"flush-element\"],[\"close-element\"],[\"open-element\",\"br\",[]],[\"flush-element\"],[\"close-element\"],[\"text\",\"\\nDub-Track Delay Milliseconds: \"],[\"append\",[\"helper\",[\"input\"],null,[[\"type\",\"min\",\"step\",\"id\",\"value\"],[\"number\",\"0\",\"100\",\"dubTrackDelayMillis\",[\"get\",[\"newDubTrackDelay\"]]]]],false],[\"text\",\" (current value: \"],[\"append\",[\"unknown\",[\"dubTrackDelay\"]],false],[\"text\",\")\"],[\"open-element\",\"br\",[]],[\"flush-element\"],[\"close-element\"],[\"text\",\"\\nInner Dub-Track Delay Milliseconds: \"],[\"append\",[\"helper\",[\"input\"],null,[[\"type\",\"min\",\"step\",\"id\",\"value\"],[\"number\",\"0\",\"100\",\"innerDubTrackDelayMillis\",[\"get\",[\"newInnerDubTrackDelay\"]]]]],false],[\"text\",\" (current value: \"],[\"append\",[\"unknown\",[\"innerDubTrackDelay\"]],false],[\"text\",\")\"],[\"open-element\",\"br\",[]],[\"flush-element\"],[\"close-element\"],[\"text\",\"\\n\"],[\"open-element\",\"button\",[]],[\"static-attr\",\"type\",\"button\"],[\"static-attr\",\"id\",\"setDubTrackDelay\"],[\"modifier\",[\"action\"],[[\"get\",[null]],\"setDubTrackSecs\"]],[\"flush-element\"],[\"text\",\"Set Dub-Track Delay\"],[\"close-element\"],[\"text\",\"\\n\"],[\"open-element\",\"br\",[]],[\"flush-element\"],[\"close-element\"],[\"text\",\"\\n\"]],\"locals\":[]},{\"statements\":[[\"open-element\",\"span\",[]],[\"flush-element\"],[\"text\",\"Audio Saved\"],[\"close-element\"],[\"text\",\"\\n\"]],\"locals\":[]},{\"statements\":[[\"open-element\",\"button\",[]],[\"static-attr\",\"style\",\"background-color:red;\"],[\"static-attr\",\"type\",\"button\"],[\"modifier\",[\"action\"],[[\"get\",[null]],\"stopRecording\"]],[\"flush-element\"],[\"text\",\"Stop Record Audio\"],[\"close-element\"],[\"text\",\"\\n\"]],\"locals\":[]},{\"statements\":[[\"open-element\",\"button\",[]],[\"static-attr\",\"id\",\"rec_ctrl\"],[\"static-attr\",\"type\",\"button\"],[\"modifier\",[\"action\"],[[\"get\",[null]],\"startRecording\"]],[\"flush-element\"],[\"text\",\"Start Record Audio\"],[\"close-element\"],[\"text\",\"\\n\"]],\"locals\":[]},{\"statements\":[[\"block\",[\"unless\"],[[\"get\",[\"recording\"]]],null,4,3]],\"locals\":[]},{\"statements\":[[\"open-element\",\"span\",[]],[\"static-attr\",\"style\",\"float: left; margin-left: 0px 10px 0px 10px;\"],[\"flush-element\"],[\"text\",\"\\n\"],[\"open-element\",\"button\",[]],[\"static-attr\",\"id\",\"play_dub\"],[\"static-attr\",\"type\",\"button\"],[\"static-attr\",\"style\",\"background-color: blue;\"],[\"modifier\",[\"action\"],[[\"get\",[null]],\"playVideo\",false]],[\"flush-element\"],[\"text\",\"Play Dub\"],[\"close-element\"],[\"text\",\"\\n\"],[\"close-element\"],[\"text\",\"\\n\"],[\"open-element\",\"span\",[]],[\"static-attr\",\"style\",\"float: left; margin-left: 0px 10px 0px 10px;\"],[\"flush-element\"],[\"text\",\"\\n\"],[\"open-element\",\"button\",[]],[\"static-attr\",\"id\",\"play_orig\"],[\"static-attr\",\"type\",\"button\"],[\"static-attr\",\"style\",\"background-color: yellow;\"],[\"modifier\",[\"action\"],[[\"get\",[null]],\"playVideo\"]],[\"flush-element\"],[\"text\",\"Play Orig\"],[\"close-element\"],[\"text\",\"\\n\"],[\"close-element\"],[\"text\",\"\\n\"],[\"open-element\",\"span\",[]],[\"flush-element\"],[\"text\",\"\\n\"],[\"block\",[\"unless\"],[[\"get\",[\"recorded\"]]],null,5,2],[\"close-element\"],[\"text\",\"\\n\"],[\"open-element\",\"span\",[]],[\"static-attr\",\"style\",\"margin: 0px 0px 0px 20px;\"],[\"flush-element\"],[\"text\",\"\\n\"],[\"open-element\",\"button\",[]],[\"static-attr\",\"type\",\"button\"],[\"static-attr\",\"style\",\"background-color: green;\"],[\"modifier\",[\"action\"],[[\"get\",[null]],\"shareVideo\"]],[\"flush-element\"],[\"text\",\"Share Video\"],[\"close-element\"],[\"text\",\"\\n\"],[\"close-element\"],[\"text\",\"\\n\"]],\"locals\":[]},{\"statements\":[[\"block\",[\"if\"],[[\"helper\",[\"and\"],[[\"get\",[\"initialPlayed\"]],[\"get\",[\"displayControls\"]]],null]],null,6]],\"locals\":[]},{\"statements\":[[\"open-element\",\"div\",[]],[\"static-attr\",\"id\",\"video\"],[\"flush-element\"],[\"close-element\"],[\"text\",\"\\n\"],[\"open-element\",\"br\",[]],[\"flush-element\"],[\"close-element\"],[\"text\",\"\\n\"]],\"locals\":[]},{\"statements\":[[\"open-element\",\"a\",[]],[\"dynamic-attr\",\"href\",[\"concat\",[\"whatsapp://send?text=\",[\"unknown\",[\"sharedDubTrackData\",\"whatsAppText\"]]]]],[\"static-attr\",\"data-action\",\"share/whatsapp/share\"],[\"flush-element\"],[\"text\",\"Share via Whatsapp\"],[\"close-element\"],[\"text\",\" or\\n\"]],\"locals\":[]},{\"statements\":[[\"open-element\",\"img\",[]],[\"static-attr\",\"style\",\"border; 0px;\"],[\"dynamic-attr\",\"src\",[\"concat\",[\"https://img.youtube.com/vi/\",[\"unknown\",[\"sharedDubTrackData\",\"videoId\"]],\"/default.jpg\"]]],[\"flush-element\"],[\"close-element\"],[\"text\",\" -\\n\"],[\"block\",[\"if\"],[[\"get\",[\"application\",\"isMobile\"]]],null,9],[\"open-element\",\"a\",[]],[\"dynamic-attr\",\"href\",[\"concat\",[[\"unknown\",[\"sharedDubTrackData\",\"dubTrackUrl\"]]]]],[\"static-attr\",\"target\",\"dubTrack\"],[\"flush-element\"],[\"open-element\",\"input\",[]],[\"static-attr\",\"readonly\",\"\"],[\"dynamic-attr\",\"id\",[\"concat\",[\"share_\",[\"get\",[\"idx\"]]]]],[\"dynamic-attr\",\"value\",[\"concat\",[[\"unknown\",[\"sharedDubTrackData\",\"dubTrackUrl\"]]]]],[\"static-attr\",\"style\",\"width: 300px; border: 0px; color: blue;\"],[\"flush-element\"],[\"close-element\"],[\"close-element\"],[\"text\",\"\\n\"],[\"open-element\",\"button\",[]],[\"static-attr\",\"type\",\"button\"],[\"modifier\",[\"action\"],[[\"get\",[null]],\"copyToClipboard\",[\"helper\",[\"append\"],[\"#share\",[\"get\",[\"idx\"]],\"_\"],null]]],[\"flush-element\"],[\"text\",\"Copy Link to Clipboard\"],[\"close-element\"],[\"text\",\"\\n\"],[\"open-element\",\"br\",[]],[\"flush-element\"],[\"close-element\"],[\"text\",\"\\n\"]],\"locals\":[\"sharedDubTrackData\",\"idx\"]}],\"hasPartials\":false}", "meta": { "moduleName": "sparta/templates/components/sound-track-creator.hbs" } });
+});
+define("sparta/templates/index", ["exports"], function (exports) {
+  exports["default"] = Ember.HTMLBars.template({ "id": "o8AUuinb", "block": "{\"statements\":[[\"append\",[\"unknown\",[\"sound-track-creator\"]],false],[\"text\",\"\\n\"]],\"locals\":[],\"named\":[],\"yields\":[],\"blocks\":[],\"hasPartials\":false}", "meta": { "moduleName": "sparta/templates/index.hbs" } });
+});
+define("sparta/templates/new", ["exports"], function (exports) {
+  exports["default"] = Ember.HTMLBars.template({ "id": "PPSBRkPt", "block": "{\"statements\":[[\"append\",[\"helper\",[\"sound-track-creator\"],null,[[\"skipSample\"],[true]]],false],[\"text\",\"\\n\"]],\"locals\":[],\"named\":[],\"yields\":[],\"blocks\":[],\"hasPartials\":false}", "meta": { "moduleName": "sparta/templates/new.hbs" } });
 });
 /* jshint ignore:start */
 
@@ -704,7 +959,7 @@ catch(err) {
 /* jshint ignore:start */
 
 if (!runningTests) {
-  require("sparta/app")["default"].create({"name":"sparta","version":"0.0.0+3d63ef8e"});
+  require("sparta/app")["default"].create({"backendUrlPrefix":"//192.168.0.2:3003/","name":"sparta","version":"0.0.0+b2c174da"});
 }
 
 /* jshint ignore:end */

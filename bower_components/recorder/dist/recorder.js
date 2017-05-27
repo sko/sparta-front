@@ -240,10 +240,17 @@ var Recorder = exports.Recorder = (function () {
         };
     }
 
+    function _delayedRecord() {
+        this.recording = true;
+    }
+    
     _createClass(Recorder, [{
         key: 'record',
-        value: function record() {
-            this.recording = true;
+        value: function record(delay) {
+            if (delay == null)
+                this.recording = true;
+            else
+                window.setTimeout(_delayedRecord.bind(this), delay)
         }
     }, {
         key: 'stop',

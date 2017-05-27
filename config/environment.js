@@ -29,6 +29,7 @@ module.exports = function(environment) {
     // ENV.APP.LOG_TRANSITIONS = true;
     // ENV.APP.LOG_TRANSITIONS_INTERNAL = true;
     // ENV.APP.LOG_VIEW_LOOKUPS = true;
+    ENV.APP.backendUrlPrefix = '//192.168.0.2:3003/';
   }
 
   if (environment === 'test') {
@@ -40,14 +41,17 @@ module.exports = function(environment) {
     ENV.APP.LOG_VIEW_LOOKUPS = false;
 
     ENV.APP.rootElement = '#ember-testing';
+    ENV.APP.backendUrlPrefix = '/';
   }
 
   if (environment === 'stage') {
     ENV.rootURL = '/sparta/';
+    ENV.APP.backendUrlPrefix = '/';
   }
 
   if (environment === 'production') {
     ENV.rootURL = '/sparta/';
+    ENV.APP.backendUrlPrefix = '/';
   }
 
   return ENV;

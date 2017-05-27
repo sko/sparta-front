@@ -1,6 +1,4 @@
-import Ember from 'ember'
-
-BackendAdapterService = Ember.Service.extend 
+export default Ember.Service.extend 
   # callbackContext ... {context: ..., success: (data) ->, error: (error) ->}
   request: (url, method, params = null, callbackContext = null) ->
     console.log 'BackendAdapter - request: url = ' + url + ', method = ' + method + ', callbackContext? = '+callbackContext?
@@ -38,5 +36,3 @@ BackendAdapterService = Ember.Service.extend
       true
     else
       promise
-
-export default BackendAdapterService

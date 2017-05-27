@@ -1,9 +1,3 @@
-<!--
-<input id="publish-url" type="hidden" value="//localhost:3003/sparta/dub_track" />
-<input id="dub-data-url" type="hidden" value="//localhost:3003/sparta/dub_track/:dubId" />
--->
-<!---->
-<input id="publish-url" type="hidden" value="/sparta/dub_track" />
-<input id="dub-data-url" type="hidden" value="/sparta/dub_track/:dubId" />
-
-{{sound-track-creator dubTrackJSON='{"video_id": "haNzpiLYdEk", "start_secs": 49, "end_secs": 55, "dub_track_url": "das_ist_kreuzberg.wav"}'}}
+<input id="publish-url" type="hidden" value="{{backendUrlPrefix}}sparta/dub_track" />
+<input id="dub-data-url" type="hidden" value="{{backendUrlPrefix}}sparta/dub_track/:dubId" />
+{{outlet}}

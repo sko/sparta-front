@@ -1,41 +1,116 @@
-import Ember from 'ember'
+# import Ember from 'ember'
 import recorder from 'recorder'
 
 SoundTrackCreatorComponent = Ember.Component.extend
   recordAudio: Ember.inject.service()
   backendAdapter: Ember.inject.service()
+  application: (->
+    Ember.getOwner(@).lookup('controller:application')
+  ).property()
+  skipSample: false
   audioContext: Ember.computed.alias('recordAudio.audioContext')
   dubSpecReady: false
+  displayControls: true
   initialPlayed: false
+  useAudioTag: ( ->
+    false # mobile / browser dependent
+  ).property()
   player: null
+  # player: Ember.computed.alias('application.player')
   playerReady: ( ->
     false
   ).property()
+  # playerReady: Ember.computed.alias('application.playerReady')
+  sharedDubTrackUrls: []
   videoId: null
+  origDubTrackStartSecs: -1
   start: -1
-  end: -1
+  end: 1
+  dubTrackDelay: 0
+  innerDubTrackDelay: 0
+  newStart: -1
+  newEnd: 1
+  newDubTrackDelay: 0
+  newInnerDubTrackDelay: 0
+  changeObserver: Ember.observer 'start', 'newStart', 'end', 'newEnd', 'dubTrackDelay', 'newDubTrackDelay', 'innerDubTrackDelay', 'newInnerDubTrackDelay', ->
+    newCuttingData = false
+    if @.get('start') != parseInt(@.get('newStart'))
+      $('#startSecs').css 'background-color', 'red'
+      newCuttingData = true
+    else
+      $('#startSecs').css 'background-color', ''
+    if @.get('end') != parseInt(@.get('newEnd'))
+      $('#endSecs').css 'background-color', 'red'
+      newCuttingData = true
+    else
+      $('#endSecs').css 'background-color', ''
+    if newCuttingData
+      $('#setCuttingData').css 'background-color', 'red'
+    else
+      $('#setCuttingData').css 'background-color', ''
+
+    newDubTrackDelay = false
+    if @.get('dubTrackDelay') != parseInt(@.get('newDubTrackDelay'))
+      $('#dubTrackDelayMillis').css 'background-color', 'red'
+      newDubTrackDelay = true
+    else
+      $('#dubTrackDelayMillis').css 'background-color', ''
+    if @.get('innerDubTrackDelay') != parseInt(@.get('newInnerDubTrackDelay'))
+      $('#innerDubTrackDelayMillis').css 'background-color', 'red'
+      newDubTrackDelay = true
+    else
+      $('#innerDubTrackDelayMillis').css 'background-color', ''
+    if newDubTrackDelay
+      $('#setDubTrackDelay').css 'background-color', 'red'
+    else
+      $('#setDubTrackDelay').css 'background-color', ''
   orig: true
-  volume: -1
+  volume: null
   videoStarted: false
   stopAudioCallback: null
   setupAudioTracking: ( ->
+    @.set 'application.sTC', @
     try
       AudioContext = window.AudioContext||window.webkitAudioContext;
       @.set 'audioContext', new AudioContext()
     catch error
       console.log('no audio-player-support', error)
     if (Modernizr.getusermedia)
-      if (dubIdMatch = location.search.match(/[?&]dubId=([^&]+)/))?
-        @.set 'dubTrackJSON', null
+      if @.get('skipSample')
+        @.set 'dubSpecReady', true
+        @.set 'initialPlayed', true
+        @.set 'displayControls', false
+        @.set 'start', 0
+        @.set 'end', 1
+        @.set 'newStart', 0
+        @.set 'newEnd', 1
+        if $('#iframe_api').length >= 1
+          Ember.run.schedule "afterRender", =>
+              @.initPlayer()
+        else
+          Ember.run.schedule "afterRender", =>
+              @.setupYoutubeAPI()
+      else
+        dubIdMatch = (location.search.match(/[?&]dubId=([^&]+)/) || [null, '-1'])
         url = $('#dub-data-url').val().replace(/:dubId/, dubIdMatch[1])
         @.get('backendAdapter').request(url, 'GET').then (dubData) =>
             @.set 'videoId', dubData.video_id
+            @.set 'origDubTrackStartSecs', dubData.start_secs + dubData.delay_millis / 1000
             @.set 'start', dubData.start_secs
             @.set 'end', dubData.end_secs
-            @.createDownloadLink dubData.dub_track_url
+            @.set 'dubTrackDelay', dubData.delay_millis
+            @.set 'innerDubTrackDelay', dubData.inner_delay_millis
+            @.set 'newStart', dubData.start_secs
+            @.set 'newEnd', dubData.end_secs
+            @.set 'newDubTrackDelay', dubData.delay_millis
+            @.set 'newInnerDubTrackDelay', dubData.inner_delay_millis
+            if @.get('useAudioTag')
+              @.createDownloadLink dubData.dub_track_url
+            else
+              @.initAudioBuffer @.set('dubTrackUrl', dubData.dub_track_url)
             @.set 'dubSpecReady', true
-            if @.get('player')? && (!@.get('initialPlayed'))
-              @.send 'playVideo', false
+            Ember.run.schedule "afterRender", =>
+                @.setupYoutubeAPI()
       constraints = {audio: true}
       gUM = Modernizr.prefixed('getUserMedia', navigator)
       gUM constraints, (stream) =>
@@ -46,64 +121,75 @@ SoundTrackCreatorComponent = Ember.Component.extend
           @.set 'audioRecorder', new Recorder(@.get('audioContext').createMediaStreamSource(stream), recorderConfig)
         , (e) =>
           console.log('Reeeejected!', e)
-          alert('Reeeejected!')
+          # alert('Reeeejected!')
   ).on('init')
-  setupYoutubeAPI: ( ->
-    tag = document.createElement('script')
-    tag.src = "//www.youtube.com/player_api"
-    firstScriptTag = document.getElementsByTagName('script')[0]
-    firstScriptTag.parentNode.insertBefore tag, firstScriptTag
-    window.onYouTubePlayerAPIReady = @.onYouTubePlayerAPIReady.bind(@)
-  ).on('init')
-  initialDubTrack: ( ->
-    if @.get('dubTrackJSON')?
-      dubData = JSON.parse(@.get('dubTrackJSON'))
-      @.set 'videoId', dubData.video_id
-      @.set 'start', dubData.start_secs
-      @.set 'end', dubData.end_secs
-      @.createDownloadLink dubData.dub_track_url
-      @.set 'dubSpecReady', true
-      if @.get('player')? && (!@.get('initialPlayed'))
-        @.send 'playVideo', false
-  ).on('didInsertElement')
   actions:
     setVideoId: () ->
+      if parseInt($('#startSecs').val()) >= parseInt($('#endSecs').val())
+        $('#endSecs').val (parseInt($('#startSecs').val()) + @.get('end') - @.get('start'))
+      unless @.get('displayControls')
+        @.set 'displayControls', true
+      noVideoChange = @.get('videoId') == $('#videoId').val()
+      if noVideoChange && (@.get('start') > @.get('origDubTrackStartSecs'))
+        extraDubTrackDelay = (@.get('start') - @.get('origDubTrackStartSecs')) * 1000
+      else
+        extraDubTrackDelay = 0
       @.set 'videoId', $('#videoId').val()
+      startSecsChange = parseInt($('#startSecs').val()) - @.get('start')
       @.set 'start', parseInt($('#startSecs').val())
       @.set 'end', parseInt($('#endSecs').val())
-      $('#video').attr 'src', $('#video').attr('src').
-                              replace(/embed\/[^?]+/, 'embed/'+$('#videoId').val()).
-                              replace(/([?&])start=[^&]+/, '$1start='+$('#startSecs').val()).
-                              replace(/([?&])end=[^&]+/, '$1end='+$('#endSecs').val())
+      @.set 'newStart', parseInt($('#startSecs').val())
+      @.set 'newEnd', parseInt($('#endSecs').val())
+      if noVideoChange
+        if (newDubTrackDelay = @.get('dubTrackDelay') - startSecsChange * 1000 - extraDubTrackDelay) < 0
+          unless @.get('dubTrackDelay') == 0
+            @.set 'dubTrackDelay', 0
+            @.set 'newDubTrackDelay', 0
+        else
+          @.set 'dubTrackDelay', newDubTrackDelay
+          @.set 'newDubTrackDelay', newDubTrackDelay
+      else
+        @.set 'dubTrackDelay', 0
+        @.set 'innerDubTrackDelay', 0
+        @.set 'newDubTrackDelay', 0
+        @.set 'newInnerDubTrackDelay', 0
+
+      @.get('player').destroy()
+      @.initPlayer()
+    setDubTrackSecs: () ->
+      @.set 'dubTrackDelay', parseInt($('#dubTrackDelayMillis').val())
+      @.set 'innerDubTrackDelay', parseInt($('#innerDubTrackDelayMillis').val())
     playVideo: (orig = true) ->
-      unless @.get('initialPlayed')
-        @.set 'initialPlayed', true
       @.set 'orig', orig
       if orig
         @.get('player').unMute()
-        @.get('player').setVolume (@.get('volume') || 100)
-      else
-        @.get('player').mute()
-        #@.get('player').setVolume 0
-      @.get('player').playVideo()
-      # preload video for next play
+        # @.get('player').setVolume (@.get('volume') || 100)
+      # else
+      #   @.get('player').mute()
+        # @.get('player').setVolume 0
+      # @.get('player').playVideo()
       @.get('player').loadVideoById
         'videoId': @.get('videoId')
         'startSeconds': @.get('start')
         'endSeconds': @.get('end')
     startRecording: () ->
+      @.set 'dubTrackDelay', 0
+      @.set 'innerDubTrackDelay', 0
       @.set 'recording', true
       @.send 'playVideo', false
     stopRecording: () ->
       console.log 'stop recording audio-track ...'
       @.set 'recording', false
+      @.set 'recorded', true
       @.get('audioRecorder').stop()
+      @.get('player').unMute()
       # TODO: yt-timecode
       @.get('audioRecorder').exportWAV (blob) =>
           @.set 'audioBlob', blob
-          @.createDownloadLink @.set('dubTrackUrl', URL.createObjectURL(blob))
-          # @.initAudioBuffer @.set('dubTrackUrl', URL.createObjectURL(blob))
-          # @.get('audioRecorder').clear()
+          if @.get('useAudioTag')
+            @.createDownloadLink @.set('dubTrackUrl', URL.createObjectURL(blob))
+          else
+            @.initAudioBuffer @.set('dubTrackUrl', URL.createObjectURL(blob))
         #, "audio/wav"
       @.get('audioRecorder').clear()
     shareVideo: () ->
@@ -116,9 +202,18 @@ SoundTrackCreatorComponent = Ember.Component.extend
                 dubTrackUrl = location.href.replace(/([?&]dubId=)[^&]+/, '$1'+dubData.id)
               else
                 dubTrackUrl = location.href+'?dubId='+dubData.id
-              $('body').prepend "<a href='"+dubTrackUrl+"' target='dubTrack'>"+dubTrackUrl+"</a><br>"
+              if @.get('application.isMobile')
+                @.set 'sharedDubTrackUrls', @.get('sharedDubTrackUrls').concat([{videoId: @.get('videoId'), dubTrackUrl: dubTrackUrl, whatsAppText: encodeURI('DubTrack => ' + dubTrackUrl)}])
+              else
+                @.set 'sharedDubTrackUrls', @.get('sharedDubTrackUrls').concat([{videoId: @.get('videoId'), dubTrackUrl: dubTrackUrl}])
       reader.readAsDataURL @.get('audioBlob')
-  
+    copyToClipboard: (selector) ->
+      copyDatainput  = document.querySelector(selector)
+      copyDatainput.select()
+      document.execCommand('copy')
+    newDubTrack: () ->
+      @.get('router').transitionTo 'new'
+
   # audiobuffers can be started only once, so after end we setup next one for replay.
   initAudioBuffer: (audioFileUrl) ->
     @.set 'audioBufferStarted', false
@@ -128,69 +223,112 @@ SoundTrackCreatorComponent = Ember.Component.extend
           # @.get('audioBuffer').disconnect()
           $('#rec_ctrl').attr("disabled", true)
           @.get('player').unMute()
-          @.get('player').setVolume (@.get('volume') || 100)
+          # @.get('player').setVolume (@.get('volume') || 100)
           @.initAudioBuffer audioFileUrl
       )
   
-  onYouTubePlayerAPIReady: ->
-    # videoSrc = $('#video').attr('src')
-    # @.set 'videoId', videoSrc.match(/embed\/([^\/&?]+)/)[1]
-    # @.set 'start', videoSrc.match(/[?&]start=([^&]+)/)[1]
-    # @.set 'end', videoSrc.match(/[?&]end=([^&]+)/)[1]
+  setupYoutubeAPI: ->
+    window.onYouTubeIframeAPIReady = @.onYouTubeIframeAPIReady.bind(@)
+    tag = document.createElement('script')
+    tag.id = "iframe_api"
+    tag.src = "//www.youtube.com/iframe_api"
+    firstScriptTag = document.getElementsByTagName('script')[0]
+    firstScriptTag.parentNode.insertBefore tag, firstScriptTag
+  
+  onYouTubeIframeAPIReady: ->
+    console.log 'youTubeIframeAPIReady ...'
+    @.initPlayer()
+
+  initPlayer: ->
     @.set 'player', new YT.Player 'video',
+      width: 560
+      height: 315
+      videoId: @.get('videoId')
       events:
         'onReady': @.onYouTubePlayerReady.bind(@)
         'onStateChange': @.onYouTubePlayerStateChange.bind(@)
-    @.set 'volume', 100 # @.get('player').getVolume()
+      playerVars:
+        start: @.get('start')
+        end: @.get('end')
+        showinfo: 0
+        controls: 0
+        version: 3
+        enablejsapi: 1
+        html5: 1
+    # @.set 'volume', 100 # @.get('player').getVolume()
   
   onYouTubePlayerReady: ->
+    console.log 'youTubePlayerReady ...'
     @.set 'playerReady', true
-    if @.get('dubSpecReady') && (!@.get('initialPlayed'))
-      @.send 'playVideo', false
+    # if @.get('dubSpecReady') && (!@.get('initialPlayed'))
+    #   @.send 'playVideo', false
   
   onYouTubePlayerStateChange: (event) ->
-    console.log 'yt-player-state: '+event.data+', videoStarted = '+@.get('videoStarted')+', playerState = '+@.get('player').getPlayerState()+', videoLoaded = '+@.get('player').getVideoLoadedFraction()+', recording = '+@.get('recording')
+    console.log 'yt-player-state: '+event.data+', videoStarted = '+@.get('videoStarted')+', videoLoaded = '+@.get('player').getVideoLoadedFraction()+', recording = '+@.get('recording')+', initialPlayed = '+@.get('initialPlayed')+', orig = '+@.get('orig')
     switch event.data
       when 1
+        unless @.get('initialPlayed')
+          if (!@.get('orig')?) || @.get('orig')
+            @.set 'orig', false
+            # @.get('player').mute()
         $('#play_orig').attr("disabled", true)
         $('#play_dub').attr("disabled", true)
-        if (stopAudio = @.get('stopAudioCallback'))?
+        # if (stopAudio = @.get('stopAudioCallback'))?
+        if (stopAudio = @.get('stopAudioCallback'))? && @.get('audioBufferStarted')
           stopAudio()
         @.set 'videoStarted', true
-        console.log 'yt-player started playing ...'
+        console.log 'yt-player started playing, orig = '+@.get('orig')+' ...'
         unless @.get('orig')
           if @.get('player').getVideoLoadedFraction() != 0
             if @.get('recording')
+              @.get('player').mute()
               console.log 'start recording audio-track ...'
-              @.get('audioRecorder').record()
+              @.get('audioRecorder').record(300)
             else
-              console.log 'start playing audio-track; player.startSeconds = '+@.get('start')+', player.getCurrentTime = '+@.get('player').getCurrentTime()
-              # @.get('audioBuffer').start(0)
-              @.set 'audioBufferStarted', true
-              $('audio')[0].currentTime = 0.2 # @.get('player').getCurrentTime() - @.get('start')
-              console.log 'currentTime = '+$('audio')[0].currentTime
-              $('audio')[0].play()
+              if @.get('dubTrackDelay') <= 0
+                @.startDubTrack @.get('innerDubTrackDelay')
+              else
+                window.setTimeout @.startDubTrack.bind(@), @.get('dubTrackDelay')
       when 0
+        unless @.get('initialPlayed')
+          @.set 'initialPlayed', true
         @.set 'videoStarted', false
         @.set 'stopAudioCallback', null
         $('#play_orig').attr("disabled", false)
         $('#play_dub').attr("disabled", false)
         $('#rec_ctrl').attr("disabled", false)
+        @.set 'recorded', false
+
+  startDubTrack: ->
+    if @.get('innerDubTrackDelay') <= 0
+      @.get('player').mute()
+    else
+      window.setTimeout @.get('player').mute.bind(@.get('player')), @.get('innerDubTrackDelay')
+    console.log 'start playing audio-track; player.startSeconds = '+@.get('start')+', player.getCurrentTime = '+@.get('player').getCurrentTime()
+    if @.get('useAudioTag')
+      $('audio')[0].currentTime = 0.2 # @.get('player').getCurrentTime() - @.get('start')
+      console.log 'currentTime = '+$('audio')[0].currentTime
+      $('audio')[0].play()
+    else
+      # @.get('audioBuffer').start(0, @.get('innerDubTrackDelay')/1000) # @.get('player').getCurrentTime() - @.get('start')
+      @.get('audioBuffer').start() # @.get('player').getCurrentTime() - @.get('start')
+      @.set 'audioBufferStarted', true
   
   createDownloadLink: (url) ->
     $('audio').remove()
     au = document.createElement('audio')
     au.controls = true
+    # au.muted = true
     au.volume = 1.0
     au.preload = 'auto'
     au.src = url
     $('body').append(au)
     $('audio').on 'ended', () =>
         if @.get('dubSpecReady')
-          console.log 'continue with original audio ...'
+          console.log 'continue with original audio, videoStarted = '+@.get('videoStarted')
           $('#rec_ctrl').attr("disabled", true)
           @.get('player').unMute()
-          @.get('player').setVolume (@.get('volume') || 100)
+          # @.get('player').setVolume (@.get('volume') || 100)
   
   connectAudioSource: (filePath, callback = null) ->
     if @.get('audioContext')?
@@ -203,7 +341,6 @@ SoundTrackCreatorComponent = Ember.Component.extend
         ],
         (bufferList) =>
             @.set 'stopAudioCallback', () =>
-                debugger
                 audio1.stop()
                 #audio1.currentTime = 0
             audio1.buffer = bufferList[0]
@@ -220,6 +357,8 @@ SoundTrackCreatorComponent = Ember.Component.extend
     formData.append ('dub_data[video_id]'), @.get('videoId')
     formData.append ('dub_data[start_secs]'), @.get('start')
     formData.append ('dub_data[end_secs]'), @.get('end')
+    formData.append ('dub_data[delay_millis]'), @.get('dubTrackDelay')
+    formData.append ('dub_data[inner_delay_millis]'), @.get('innerDubTrackDelay')
     formData.append ('dub_data[dub_track]'), @.get('dubTrackData')
     formData
   
@@ -231,6 +370,5 @@ SoundTrackCreatorComponent = Ember.Component.extend
         callBack(response.dub_data)
       , (error) =>
         alert 'error'
-
 
 export default SoundTrackCreatorComponent
