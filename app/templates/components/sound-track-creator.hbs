@@ -17,9 +17,11 @@
 
 {{#if playerReady}}
 {{#if (and initialPlayed displayControls)}}
+{{#if audioBuffer}}
 <span style="float: left; margin-left: 0px 10px 0px 10px;">
 <button id="play_dub" type="button" style="background-color: blue;" {{action "playVideo" false}}>Play Dub</button>
 </span>
+{{/if}}
 <span style="float: left; margin-left: 0px 10px 0px 10px;">
 <button id="play_orig" type="button" style="background-color: yellow;" {{action "playVideo"}}>Play Orig</button>
 </span>
@@ -40,8 +42,36 @@
 {{/if}}
 {{/if}}
 
-{{#if initialPlayed}}
-<br><br>
+{{input type='checkbox' name='showHowTo' checked=showHowTo}}Show HowTo
+
+{{#if showHowTo}}
+<br>
+<!--
+<div style="width: {{playerWidth}}px; margin-top: 7px;">
+Creating a Dub-Track involves 2 Phases: <span class="howTo phase1">First you only edit the Part/Timespan where you want to replace/dub the Video's Original Audiotrack.</span><span class="howTo phase2">Second, you optionally edit the actual start/end of the video if it should be different.</span>
+</div>
+<ol style="margin-top: 0px; margin-bottom: 0px; padding: 10px; width: {{playerWidth}}px;">
+  <li class="howTo phase1">Set Youtube Video-Id, Video-Start-Secs short before the time when the Dub-Track should start and Video-End-Secs after the Dub-Track should end. <span class="howTo phase2">You can later fine-tune the exact start-time of your Dub-Track, so that there's no gap between the original Audio-Track (@see 4.),</span> whereas the end-point currently can't be changed.</li>
+  <li class="howTo phase1">Click <button type="button">Start Record Audio</button> and Dub the Video. The button changes to <button style="background-color:red;" type="button">Stop Record Audio</button> and you have to click it right after your Dub-Track is complete and the original Track shall be audible again.</li>
+  <li class="howTo phase1">After Recording check your Dub-Track by clicking <button type="button" style="background-color: blue;">Play Dub</button></li>
+  <li class="howTo phase2">You can also fine-tune the Dub-Track's start-time if you want the Videos original preceding Audio-Track to play longer. Set the value in "Inner Dub-Track Delay Milliseconds"</li>
+  <li class="howTo phase2">If you want the Video to start some Time before Your Dub-Track then you can change the Video-Start-Secs now to an earlier moment and click <button type="button">Set Cutting Data</button>. You'll notice that the value of "Dub-Track Delay Milliseconds" will change accordingly, meaning that the Dub-Track will start some Time after the Video.</li>
+</ol>
+-->
+<div style="width: {{playerWidth}}px; margin-top: 7px;">
+With the <button type="button" style="background-color: yellow;">Play Orig</button> button you can always replay the original soundtrack. After clicking <button type="button">Start Record Audio</button> the button changes to <button style="background-color:red;" type="button">Stop Record Audio</button>.
+</div>
+<ol style="margin-top: 0px; margin-bottom: 0px; padding: 10px; width: {{playerWidth}}px;">
+  <li class="howTo phase1">Click <button type="button">Start Record Audio</button> and say the name of your favorite city when Leonidas would say Sparta. Then click <button style="background-color:red;" type="button">Stop Record Audio</button> immediately.</li>
+  <li class="howTo phase2">Check the correct moment of your recording by clicking <button type="button" style="background-color: blue;">Play Dub</button></li>
+  <li class="howTo phase1">Now set the value in "Inner Dub-Track Delay Milliseconds" to 1600 and click <button type="button">Set Dub-Track Delay</button>, so the original soundtrack will be audible until your dub. Check again with <button type="button" style="background-color: blue;">Play Dub</button> and fine-tune the delay-value as necessary.</li>
+  <li class="howTo phase2">Now you can start the Video 3 more seconds before Your Dub-Track by changing the Video-Start-Secs from 49 to 46 and click <button type="button">Set Cutting Data</button>. You'll notice that the value of "Dub-Track Delay Milliseconds" will change accordingly, meaning that the Dub-Track will start some Time after the Video. Clicking <button type="button" style="background-color: blue;">Play Dub</button> will show the changes.</li>
+  <li class="howTo phase1">Now you can share the Dub-Track by clicking <button type="button" style="background-color: green;">Share Video</button>. After short time you'll see right above the video an url that you can share for direct access. You can also share via whatsapp on smartphones.</li>
+</ol>
+{{/if}}
+
+{{#if (or initialPlayed showHowTo)}}
+<br>
 VideoId: <input id="videoId" value="{{videoId}}"><br>
 Video Start Seconds: {{input type="number" min="0" step="1" id="startSecs" value=newStart}} (current value: {{start}}; change will update Dub-Track Delay Milliseconds)<br>
 Video End Seconds: {{input type="number" min="0" step="1" id="endSecs" value=newEnd}} (current value: {{end}})<br>

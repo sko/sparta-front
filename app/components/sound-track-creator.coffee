@@ -8,6 +8,30 @@ SoundTrackCreatorComponent = Ember.Component.extend
     Ember.getOwner(@).lookup('controller:application')
   ).property()
   skipSample: false
+  showHowTo: false
+  howToObserver: Ember.observer 'showHowTo', ->
+    videoProps = ['videoId', 'start', 'newStart', 'origDubTrackStartSecs', 'end', 'newEnd', 'audioBuffer', 'initialPlayed']
+    dubTrackProps = ['dubTrackDelay', 'newDubTrackDelay', 'innerDubTrackDelay', 'newInnerDubTrackDelay']
+    if @.get('showHowTo')
+      for propKey in videoProps.concat(dubTrackProps)
+        @.set 'howToOrig'+propKey, @.get(propKey)
+      @.set 'videoId', 'haNzpiLYdEk'
+      @.set 'origDubTrackStartSecs', @.set('newStart', @.set('start', 49))
+      @.set 'newEnd', @.set('end', 55)
+      @.set 'audioBuffer', null
+      @.set 'initialPlayed', true
+      @.set 'orig', true
+      for propKey in dubTrackProps
+        @.set propKey, 0
+    else
+      for propKey in videoProps.concat(dubTrackProps)
+        @.set propKey, @.get('howToOrig'+propKey)
+      for propKey in videoProps.concat(dubTrackProps)
+        @.set 'howToOrig'+propKey, null
+    unless @.get('displayControls')
+      @.set 'displayControls', true
+    @.get('player').destroy()
+    @.initPlayer()
   audioContext: Ember.computed.alias('recordAudio.audioContext')
   dubSpecReady: false
   displayControls: true
@@ -16,11 +40,15 @@ SoundTrackCreatorComponent = Ember.Component.extend
     false # mobile / browser dependent
   ).property()
   player: null
-  # player: Ember.computed.alias('application.player')
+  playerWidth: ( ->
+    560
+  ).property()
+  playerHeight: ( ->
+    315
+  ).property()
   playerReady: ( ->
     false
   ).property()
-  # playerReady: Ember.computed.alias('application.playerReady')
   sharedDubTrackUrls: []
   videoId: null
   origDubTrackStartSecs: -1
@@ -142,9 +170,8 @@ SoundTrackCreatorComponent = Ember.Component.extend
       @.set 'newEnd', parseInt($('#endSecs').val())
       if noVideoChange
         if (newDubTrackDelay = @.get('dubTrackDelay') - startSecsChange * 1000 - extraDubTrackDelay) < 0
-          unless @.get('dubTrackDelay') == 0
-            @.set 'dubTrackDelay', 0
-            @.set 'newDubTrackDelay', 0
+          @.set 'dubTrackDelay', 0
+          @.set 'newDubTrackDelay', 0
         else
           @.set 'dubTrackDelay', newDubTrackDelay
           @.set 'newDubTrackDelay', newDubTrackDelay
@@ -175,6 +202,8 @@ SoundTrackCreatorComponent = Ember.Component.extend
     startRecording: () ->
       @.set 'dubTrackDelay', 0
       @.set 'innerDubTrackDelay', 0
+      @.set 'newDubTrackDelay', 0
+      @.set 'newInnerDubTrackDelay', 0
       @.set 'recording', true
       @.send 'playVideo', false
     stopRecording: () ->
@@ -241,8 +270,8 @@ SoundTrackCreatorComponent = Ember.Component.extend
 
   initPlayer: ->
     @.set 'player', new YT.Player 'video',
-      width: 560
-      height: 315
+      width: @.get('playerWidth')
+      height: @.get('playerHeight')
       videoId: @.get('videoId')
       events:
         'onReady': @.onYouTubePlayerReady.bind(@)
@@ -262,6 +291,8 @@ SoundTrackCreatorComponent = Ember.Component.extend
     @.set 'playerReady', true
     # if @.get('dubSpecReady') && (!@.get('initialPlayed'))
     #   @.send 'playVideo', false
+    if @.get('showHowTo') && (!@.get('audioBuffer')?)
+      @.send 'playVideo', true
   
   onYouTubePlayerStateChange: (event) ->
     console.log 'yt-player-state: '+event.data+', videoStarted = '+@.get('videoStarted')+', videoLoaded = '+@.get('player').getVideoLoadedFraction()+', recording = '+@.get('recording')+', initialPlayed = '+@.get('initialPlayed')+', orig = '+@.get('orig')
@@ -290,6 +321,9 @@ SoundTrackCreatorComponent = Ember.Component.extend
               else
                 window.setTimeout @.startDubTrack.bind(@), @.get('dubTrackDelay')
       when 0
+        console.log 'stopAudioCallback = '+@.get('stopAudioCallback')+', recording = '+@.get('recording')+', audioBufferStarted = '+@.get('audioBufferStarted')
+        if @.get('recording') && (@.get('player').getVideoLoadedFraction() != 0)
+          @.send 'stopRecording'
         unless @.get('initialPlayed')
           @.set 'initialPlayed', true
         @.set 'videoStarted', false
