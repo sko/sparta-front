@@ -1,169 +1,115 @@
 'use strict';
 
-define('sparta/tests/app.jshint.lint-test', ['exports'], function (exports) {
-  'use strict';
-
-  QUnit.module('JSHint | app.js');
-  QUnit.test('should pass jshint', function (assert) {
-    assert.expect(1);
-    assert.ok(true, 'app.js should pass jshint.');
-  });
-});
-define('sparta/tests/helpers/destroy-app', ['exports', 'ember'], function (exports, _ember) {
-  exports['default'] = destroyApp;
-
-  function destroyApp(application) {
-    _ember['default'].run(application, 'destroy');
-  }
-});
-define('sparta/tests/helpers/destroy-app.jshint.lint-test', ['exports'], function (exports) {
-  'use strict';
-
-  QUnit.module('JSHint | helpers/destroy-app.js');
-  QUnit.test('should pass jshint', function (assert) {
-    assert.expect(1);
-    assert.ok(true, 'helpers/destroy-app.js should pass jshint.');
-  });
-});
-define('sparta/tests/helpers/module-for-acceptance', ['exports', 'qunit', 'ember', 'sparta/tests/helpers/start-app', 'sparta/tests/helpers/destroy-app'], function (exports, _qunit, _ember, _spartaTestsHelpersStartApp, _spartaTestsHelpersDestroyApp) {
-  var Promise = _ember['default'].RSVP.Promise;
-
-  exports['default'] = function (name) {
-    var options = arguments.length <= 1 || arguments[1] === undefined ? {} : arguments[1];
-
-    (0, _qunit.module)(name, {
-      beforeEach: function beforeEach() {
-        this.application = (0, _spartaTestsHelpersStartApp['default'])();
-
-        if (options.beforeEach) {
-          return options.beforeEach.apply(this, arguments);
-        }
-      },
-
-      afterEach: function afterEach() {
-        var _this = this;
-
-        var afterEach = options.afterEach && options.afterEach.apply(this, arguments);
-        return Promise.resolve(afterEach).then(function () {
-          return (0, _spartaTestsHelpersDestroyApp['default'])(_this.application);
-        });
-      }
-    });
-  };
-});
-define('sparta/tests/helpers/module-for-acceptance.jshint.lint-test', ['exports'], function (exports) {
-  'use strict';
-
-  QUnit.module('JSHint | helpers/module-for-acceptance.js');
-  QUnit.test('should pass jshint', function (assert) {
-    assert.expect(1);
-    assert.ok(true, 'helpers/module-for-acceptance.js should pass jshint.');
-  });
-});
-define('sparta/tests/helpers/resolver', ['exports', 'sparta/resolver', 'sparta/config/environment'], function (exports, _spartaResolver, _spartaConfigEnvironment) {
-
-  var resolver = _spartaResolver['default'].create();
-
-  resolver.namespace = {
-    modulePrefix: _spartaConfigEnvironment['default'].modulePrefix,
-    podModulePrefix: _spartaConfigEnvironment['default'].podModulePrefix
-  };
-
-  exports['default'] = resolver;
-});
-define('sparta/tests/helpers/resolver.jshint.lint-test', ['exports'], function (exports) {
-  'use strict';
-
-  QUnit.module('JSHint | helpers/resolver.js');
-  QUnit.test('should pass jshint', function (assert) {
-    assert.expect(1);
-    assert.ok(true, 'helpers/resolver.js should pass jshint.');
-  });
-});
-define('sparta/tests/helpers/start-app', ['exports', 'ember', 'sparta/app', 'sparta/config/environment'], function (exports, _ember, _spartaApp, _spartaConfigEnvironment) {
-  exports['default'] = startApp;
-
-  function startApp(attrs) {
-    var application = undefined;
-
-    // use defaults, but you can override
-    var attributes = _ember['default'].assign({}, _spartaConfigEnvironment['default'].APP, attrs);
-
-    _ember['default'].run(function () {
-      application = _spartaApp['default'].create(attributes);
-      application.setupForTesting();
-      application.injectTestHelpers();
-    });
-
-    return application;
-  }
-});
-define('sparta/tests/helpers/start-app.jshint.lint-test', ['exports'], function (exports) {
-  'use strict';
-
-  QUnit.module('JSHint | helpers/start-app.js');
-  QUnit.test('should pass jshint', function (assert) {
-    assert.expect(1);
-    assert.ok(true, 'helpers/start-app.js should pass jshint.');
-  });
-});
-define('sparta/tests/integration/components/sound-track-creator-test', ['exports', 'ember-qunit'], function (exports, _emberQunit) {
+define("sparta/tests/integration/components/sound-track-creator-test", ["ember-qunit"], function (_emberQunit) {
+  "use strict";
 
   (0, _emberQunit.moduleForComponent)('sound-track-creator', 'Integration | Component | sound track creator', {
     integration: true
   });
-
   (0, _emberQunit.test)('it renders', function (assert) {
     assert.expect(2);
     this.render(Ember.HTMLBars.template({
-      'id': 'AmeXitdP',
-      'block': '{"statements":[["append",["unknown",["sound-track-creator"]],false]],"locals":[],"named":[],"yields":[],"blocks":[],"hasPartials":false}',
-      'meta': {}
+      "id": "ehok613Y",
+      "block": "{\"symbols\":[],\"statements\":[[1,[23,\"sound-track-creator\"],false]],\"hasEval\":false}",
+      "meta": {}
     }));
     assert.equal(this.$().text().trim(), '');
     this.render(Ember.HTMLBars.template({
-      'id': '84wkaMWn',
-      'block': '{"statements":[["block",["sound-track-creator"],null,null,0]],"locals":[],"named":[],"yields":[],"blocks":[{"statements":[["text","  template block text\\n"]],"locals":[]}],"hasPartials":false}',
-      'meta': {}
+      "id": "KcxamlW8",
+      "block": "{\"symbols\":[],\"statements\":[[4,\"sound-track-creator\",null,null,{\"statements\":[[0,\"  template block text\\n\"]],\"parameters\":[]},null]],\"hasEval\":false}",
+      "meta": {}
     }));
     return assert.equal(this.$().text().trim(), 'template block text');
   });
 });
-define('sparta/tests/resolver.jshint.lint-test', ['exports'], function (exports) {
-  'use strict';
+define("sparta/tests/lint/app.lint-test", [], function () {
+  "use strict";
 
-  QUnit.module('JSHint | resolver.js');
-  QUnit.test('should pass jshint', function (assert) {
+  QUnit.module('ESLint | app');
+  QUnit.test('app.js', function (assert) {
     assert.expect(1);
-    assert.ok(true, 'resolver.js should pass jshint.');
+    assert.ok(true, 'app.js should pass ESLint\n\n');
+  });
+  QUnit.test('components/sound-track-creator.js', function (assert) {
+    assert.expect(1);
+    assert.ok(false, 'components/sound-track-creator.js should pass ESLint\n\n8:10 - \'A\' is defined but never used. (no-unused-vars)\n20:18 - Don\'t use observers if possible (ember/no-observers)\n20:49 - \'_sender\' is defined but never used. (no-unused-vars)\n20:58 - \'_key\' is defined but never used. (no-unused-vars)\n20:64 - \'_value\' is defined but never used. (no-unused-vars)\n20:72 - \'_rev\' is defined but never used. (no-unused-vars)\n59:3 - Only string, number, symbol, boolean, null, undefined, and function are allowed as default properties (ember/avoid-leaking-state-in-ember-objects)\n70:19 - Don\'t use observers if possible (ember/no-observers)\n70:159 - \'_sender\' is defined but never used. (no-unused-vars)\n70:168 - \'_key\' is defined but never used. (no-unused-vars)\n70:174 - \'_value\' is defined but never used. (no-unused-vars)\n70:182 - \'_rev\' is defined but never used. (no-unused-vars)\n115:7 - Read-only global \'AudioContext\' should not be modified. (no-global-assign)\n121:7 - Unexpected console statement. (no-console)\n123:9 - \'Modernizr\' is not defined. (no-undef)\n173:8 - Unnecessary semicolon. (no-extra-semi)\n187:46 - \'Recorder\' is not defined. (no-undef)\n190:15 - \'Modernizr\' is not defined. (no-undef)\n193:7 - Unexpected console statement. (no-console)\n216:14 - \'newDubTrackDelay\' is not defined. (no-undef)\n220:37 - \'newDubTrackDelay\' is not defined. (no-undef)\n221:40 - \'newDubTrackDelay\' is not defined. (no-undef)\n260:7 - Unexpected console statement. (no-console)\n293:19 - \'dubIdMatch\' is assigned a value but never used. (no-unused-vars)\n307:7 - \'copyDatainput\' is not defined. (no-undef)\n308:7 - \'copyDatainput\' is not defined. (no-undef)\n318:68 - \'data\' is defined but never used. (no-unused-vars)\n319:9 - Unexpected console statement. (no-console)\n338:5 - Unexpected console statement. (no-console)\n342:28 - \'YT\' is not defined. (no-undef)\n363:5 - Unexpected console statement. (no-console)\n371:5 - Unexpected console statement. (no-console)\n381:9 - Unexpected lexical declaration in case block. (no-case-declarations)\n385:9 - Unexpected console statement. (no-console)\n390:15 - Unexpected console statement. (no-console)\n407:9 - Unexpected console statement. (no-console)\n425:5 - Unexpected console statement. (no-console)\n428:7 - Unexpected console statement. (no-console)\n439:7 - Unexpected console statement. (no-console)\n441:30 - \'BufferLoader\' is not defined. (no-undef)\n464:13 - \'challengeResponseToken\' is assigned a value but never used. (no-unused-vars)\n474:17 - \'challengeResponseToken\' is assigned a value but never used. (no-unused-vars)\n479:9 - Unexpected console statement. (no-console)\n482:11 - \'error\' is defined but never used. (no-unused-vars)');
+  });
+  QUnit.test('resolver.js', function (assert) {
+    assert.expect(1);
+    assert.ok(true, 'resolver.js should pass ESLint\n\n');
+  });
+  QUnit.test('router.js', function (assert) {
+    assert.expect(1);
+    assert.ok(true, 'router.js should pass ESLint\n\n');
+  });
+  QUnit.test('services/record-audio.js', function (assert) {
+    assert.expect(1);
+    assert.ok(false, 'services/record-audio.js should pass ESLint\n\n10:3 - Only string, number, symbol, boolean, null, undefined, and function are allowed as default properties (ember/avoid-leaking-state-in-ember-objects)\n49:5 - Unexpected console statement. (no-console)');
   });
 });
-define('sparta/tests/router.jshint.lint-test', ['exports'], function (exports) {
-  'use strict';
+define("sparta/tests/lint/templates.template.lint-test", [], function () {
+  "use strict";
 
-  QUnit.module('JSHint | router.js');
-  QUnit.test('should pass jshint', function (assert) {
+  QUnit.module('TemplateLint');
+  QUnit.test('sparta/templates/application.hbs', function (assert) {
     assert.expect(1);
-    assert.ok(true, 'router.js should pass jshint.');
+    assert.ok(false, 'sparta/templates/application.hbs should pass TemplateLint.\n\nsparta/templates/application.hbs\n  2:42  error  you must use double quotes in templates  quotes\n  2:56  error  you must use double quotes in templates  quotes\n  3:42  error  you must use double quotes in templates  quotes\n  3:58  error  you must use double quotes in templates  quotes\n  5:0  error  Self-closing a void element is redundant  self-closing-void-elements\n  6:0  error  Self-closing a void element is redundant  self-closing-void-elements\n  7:0  error  Self-closing a void element is redundant  self-closing-void-elements\n');
+  });
+  QUnit.test('sparta/templates/components/dub-track-library.hbs', function (assert) {
+    assert.expect(1);
+    assert.ok(false, 'sparta/templates/components/dub-track-library.hbs should pass TemplateLint.\n\nsparta/templates/components/dub-track-library.hbs\n  4:0  error  Incorrect indentation for `<img>` beginning at L4:C0. Expected `<img>` to be at an indentation of 2 but was found at 0.  block-indentation\n  5:0  error  Incorrect indentation for `{{#if}}` beginning at L5:C0. Expected `{{#if}}` to be at an indentation of 2 but was found at 0.  block-indentation\n  8:0  error  Incorrect indentation for `<a>` beginning at L8:C0. Expected `<a>` to be at an indentation of 2 but was found at 0.  block-indentation\n  9:0  error  Incorrect indentation for `<button>` beginning at L9:C0. Expected `<button>` to be at an indentation of 2 but was found at 0.  block-indentation\n  10:0  error  Incorrect indentation for `<br>` beginning at L10:C0. Expected `<br>` to be at an indentation of 2 but was found at 0.  block-indentation\n  6:0  error  Incorrect indentation for `<a>` beginning at L6:C0. Expected `<a>` to be at an indentation of 2 but was found at 0.  block-indentation\n  4:0  error  img tags must have an alt attribute  img-alt-attributes\n  4:5  error  elements cannot have inline styles  no-inline-styles\n  8:121  error  elements cannot have inline styles  no-inline-styles\n  8:53  error  Do not use <input> inside an <a> element with the `href` attribute  no-nested-interactive\n  8:8  error  Unnecessary string concatenation. Use {{dubTrack.dubTrackUrl}} instead of "{{dubTrack.dubTrackUrl}}".  no-unnecessary-concat\n  8:94  error  Unnecessary string concatenation. Use {{dubTrack.dubTrackUrl}} instead of "{{dubTrack.dubTrackUrl}}".  no-unnecessary-concat\n  8:42  error  you must use double quotes in templates  quotes\n  9:57  error  you must use double quotes in templates  quotes\n  9:70  error  you must use double quotes in templates  quotes\n');
+  });
+  QUnit.test('sparta/templates/components/sound-track-creator.hbs', function (assert) {
+    assert.expect(1);
+    assert.ok(false, 'sparta/templates/components/sound-track-creator.hbs should pass TemplateLint.\n\nsparta/templates/components/sound-track-creator.hbs\n  8:0  error  Incorrect indentation for `<img>` beginning at L8:C0. Expected `<img>` to be at an indentation of 2 but was found at 0.  block-indentation\n  9:0  error  Incorrect indentation for `{{#if}}` beginning at L9:C0. Expected `{{#if}}` to be at an indentation of 2 but was found at 0.  block-indentation\n  12:0  error  Incorrect indentation for `<a>` beginning at L12:C0. Expected `<a>` to be at an indentation of 2 but was found at 0.  block-indentation\n  13:0  error  Incorrect indentation for `<button>` beginning at L13:C0. Expected `<button>` to be at an indentation of 2 but was found at 0.  block-indentation\n  14:0  error  Incorrect indentation for `<br>` beginning at L14:C0. Expected `<br>` to be at an indentation of 2 but was found at 0.  block-indentation\n  10:0  error  Incorrect indentation for `<a>` beginning at L10:C0. Expected `<a>` to be at an indentation of 2 but was found at 0.  block-indentation\n  18:0  error  Incorrect indentation for `<div>` beginning at L18:C0. Expected `<div>` to be at an indentation of 2 but was found at 0.  block-indentation\n  19:0  error  Incorrect indentation for `<br>` beginning at L19:C0. Expected `<br>` to be at an indentation of 2 but was found at 0.  block-indentation\n  23:0  error  Incorrect indentation for `{{#if}}` beginning at L23:C0. Expected `{{#if}}` to be at an indentation of 2 but was found at 0.  block-indentation\n  24:0  error  Incorrect indentation for `{{#if}}` beginning at L24:C0. Expected `{{#if}}` to be at an indentation of 2 but was found at 0.  block-indentation\n  29:0  error  Incorrect indentation for `<span>` beginning at L29:C0. Expected `<span>` to be at an indentation of 2 but was found at 0.  block-indentation\n  32:0  error  Incorrect indentation for `<span>` beginning at L32:C0. Expected `<span>` to be at an indentation of 2 but was found at 0.  block-indentation\n  43:0  error  Incorrect indentation for `{{#if}}` beginning at L43:C0. Expected `{{#if}}` to be at an indentation of 2 but was found at 0.  block-indentation\n  25:0  error  Incorrect indentation for `<span>` beginning at L25:C0. Expected `<span>` to be at an indentation of 2 but was found at 0.  block-indentation\n  26:0  error  Incorrect indentation for `<button>` beginning at L26:C0. Expected `<button>` to be at an indentation of 2 but was found at 0.  block-indentation\n  30:0  error  Incorrect indentation for `<button>` beginning at L30:C0. Expected `<button>` to be at an indentation of 2 but was found at 0.  block-indentation\n  33:0  error  Incorrect indentation for `{{#unless}}` beginning at L33:C0. Expected `{{#unless}}` to be at an indentation of 2 but was found at 0.  block-indentation\n  34:0  error  Incorrect indentation for `{{#unless}}` beginning at L34:C0. Expected `{{#unless}}` to be at an indentation of 2 but was found at 0.  block-indentation\n  40:0  error  Incorrect indentation for `<span>` beginning at L40:C0. Expected `<span>` to be at an indentation of 2 but was found at 0.  block-indentation\n  35:0  error  Incorrect indentation for `<button>` beginning at L35:C0. Expected `<button>` to be at an indentation of 2 but was found at 0.  block-indentation\n  37:0  error  Incorrect indentation for `<button>` beginning at L37:C0. Expected `<button>` to be at an indentation of 2 but was found at 0.  block-indentation\n  44:0  error  Incorrect indentation for `<span>` beginning at L44:C0. Expected `<span>` to be at an indentation of 2 but was found at 0.  block-indentation\n  45:0  error  Incorrect indentation for `<button>` beginning at L45:C0. Expected `<button>` to be at an indentation of 2 but was found at 0.  block-indentation\n  54:0  error  Incorrect indentation for `<br>` beginning at L54:C0. Expected `<br>` to be at an indentation of 2 but was found at 0.  block-indentation\n  55:0  error  Incorrect indentation for `<!--\n<div style="width: {{playerWidth}}px; margin-top: 7px;">\nCreating a Dub-Track involves 2 Phases: <span class="howTo phase1">First you only edit the Part/Timespan where you want to replace/dub the Video\'s Original Audiotrack.</span><span class="howTo phase2">Second, you optionally edit the actual start/end of the video if it should be different.</span>\n</div>\n<ol style="margin-top: 0px; margin-bottom: 0px; padding: 10px; width: {{playerWidth}}px;">\n  <li class="howTo phase1">Set Youtube Video-Id, Video-Start-Secs short before the time when the Dub-Track should start and Video-End-Secs after the Dub-Track should end. <span class="howTo phase2">You can later fine-tune the exact start-time of your Dub-Track, so that there\'s no gap between the original Audio-Track (@see 4.),</span> whereas the end-point currently can\'t be changed.</li>\n  <li class="howTo phase1">Click <button type="button">Start Record Audio</button> and Dub the Video. The button changes to <button style="background-color:red;" type="button">Stop Record Audio</button> and you have to click it right after your Dub-Track is complete and the original Track shall be audible again.</li>\n  <li class="howTo phase1">After Recording check your Dub-Track by clicking <button type="button" style="background-color: blue;">Play Dub</button></li>\n  <li class="howTo phase2">You can also fine-tune the Dub-Track\'s start-time if you want the Videos original preceding Audio-Track to play longer. Set the value in "Inner Dub-Track Delay Milliseconds"</li>\n  <li class="howTo phase2">If you want the Video to start some Time before Your Dub-Track then you can change the Video-Start-Secs now to an earlier moment and click <button type="button">Set Cutting Data</button>. You\'ll notice that the value of "Dub-Track Delay Milliseconds" will change accordingly, meaning that the Dub-Track will start some Time after the Video.</li>\n</ol>\n-->` beginning at L55:C0. Expected `<!--\n<div style="width: {{playerWidth}}px; margin-top: 7px;">\nCreating a Dub-Track involves 2 Phases: <span class="howTo phase1">First you only edit the Part/Timespan where you want to replace/dub the Video\'s Original Audiotrack.</span><span class="howTo phase2">Second, you optionally edit the actual start/end of the video if it should be different.</span>\n</div>\n<ol style="margin-top: 0px; margin-bottom: 0px; padding: 10px; width: {{playerWidth}}px;">\n  <li class="howTo phase1">Set Youtube Video-Id, Video-Start-Secs short before the time when the Dub-Track should start and Video-End-Secs after the Dub-Track should end. <span class="howTo phase2">You can later fine-tune the exact start-time of your Dub-Track, so that there\'s no gap between the original Audio-Track (@see 4.),</span> whereas the end-point currently can\'t be changed.</li>\n  <li class="howTo phase1">Click <button type="button">Start Record Audio</button> and Dub the Video. The button changes to <button style="background-color:red;" type="button">Stop Record Audio</button> and you have to click it right after your Dub-Track is complete and the original Track shall be audible again.</li>\n  <li class="howTo phase1">After Recording check your Dub-Track by clicking <button type="button" style="background-color: blue;">Play Dub</button></li>\n  <li class="howTo phase2">You can also fine-tune the Dub-Track\'s start-time if you want the Videos original preceding Audio-Track to play longer. Set the value in "Inner Dub-Track Delay Milliseconds"</li>\n  <li class="howTo phase2">If you want the Video to start some Time before Your Dub-Track then you can change the Video-Start-Secs now to an earlier moment and click <button type="button">Set Cutting Data</button>. You\'ll notice that the value of "Dub-Track Delay Milliseconds" will change accordingly, meaning that the Dub-Track will start some Time after the Video.</li>\n</ol>\n-->` to be at an indentation of 2 but was found at 0.  block-indentation\n  67:0  error  Incorrect indentation for `<div>` beginning at L67:C0. Expected `<div>` to be at an indentation of 2 but was found at 0.  block-indentation\n  68:0  error  Incorrect indentation for `<!--The <button type="button">Start Record Audio</button> will change to <button style="background-color:red;" type="button">Stop Record Audio</button> after clicking.-->` beginning at L68:C0. Expected `<!--The <button type="button">Start Record Audio</button> will change to <button style="background-color:red;" type="button">Stop Record Audio</button> after clicking.-->` to be at an indentation of 2 but was found at 0.  block-indentation\n  69:0  error  Incorrect indentation for `<!-- ENGLISH\nWith the <button type="button" style="background-color: yellow;">Play Orig</button> button you can always replay the original soundtrack.\n<ol style="margin-top: 0px; margin-bottom: 0px; padding-left: 20px;">\n  <li class="howTo phase1">Click <button type="button">Start Record Audio</button> and say the name of your favorite city when Leonidas would say Sparta. Then click <button style="background-color:red;" type="button">Stop Record Audio</button> immediately.</li>\n  <li class="howTo phase2">Check the correct timing of your recording by clicking <button type="button" style="background-color: blue;">Play Dub</button></li>\n  <li class="howTo phase1">Now set the value in "Inner Dub-Track Delay Milliseconds" to 1600 and click <button type="button">Set Dub-Track Delay</button>, so the original soundtrack will be audible until your dub. Check again with <button type="button" style="background-color: blue;">Play Dub</button> and fine-tune the delay-value as necessary.</li>\n  <li class="howTo phase2">Now you can start the Video 3 more seconds before Your Dub-Track by changing the "Video-Start-Secs" from 49 to 46 and click <button type="button">Set Cutting Data</button>. You\'ll notice that the value of "Dub-Track Delay Milliseconds" will change accordingly, meaning that the Dub-Track will start some Time after the Video. Clicking <button type="button" style="background-color: blue;">Play Dub</button> will show the changes.</li>\n  <li class="howTo phase1">Now you can share the Dub-Track by clicking <button type="button" style="background-color: green;">Share Video</button>. After short time you\'ll see right above the video an url that you can share for direct access. You can also share via whatsapp on smartphones.</li>\n</ol>\n/ENGLISH -->` beginning at L69:C0. Expected `<!-- ENGLISH\nWith the <button type="button" style="background-color: yellow;">Play Orig</button> button you can always replay the original soundtrack.\n<ol style="margin-top: 0px; margin-bottom: 0px; padding-left: 20px;">\n  <li class="howTo phase1">Click <button type="button">Start Record Audio</button> and say the name of your favorite city when Leonidas would say Sparta. Then click <button style="background-color:red;" type="button">Stop Record Audio</button> immediately.</li>\n  <li class="howTo phase2">Check the correct timing of your recording by clicking <button type="button" style="background-color: blue;">Play Dub</button></li>\n  <li class="howTo phase1">Now set the value in "Inner Dub-Track Delay Milliseconds" to 1600 and click <button type="button">Set Dub-Track Delay</button>, so the original soundtrack will be audible until your dub. Check again with <button type="button" style="background-color: blue;">Play Dub</button> and fine-tune the delay-value as necessary.</li>\n  <li class="howTo phase2">Now you can start the Video 3 more seconds before Your Dub-Track by changing the "Video-Start-Secs" from 49 to 46 and click <button type="button">Set Cutting Data</button>. You\'ll notice that the value of "Dub-Track Delay Milliseconds" will change accordingly, meaning that the Dub-Track will start some Time after the Video. Clicking <button type="button" style="background-color: blue;">Play Dub</button> will show the changes.</li>\n  <li class="howTo phase1">Now you can share the Dub-Track by clicking <button type="button" style="background-color: green;">Share Video</button>. After short time you\'ll see right above the video an url that you can share for direct access. You can also share via whatsapp on smartphones.</li>\n</ol>\n/ENGLISH -->` to be at an indentation of 2 but was found at 0.  block-indentation\n  79:0  error  Incorrect indentation for `<!-- DEUTSCH -->` beginning at L79:C0. Expected `<!-- DEUTSCH -->` to be at an indentation of 2 but was found at 0.  block-indentation\n  81:0  error  Incorrect indentation for `<ol>` beginning at L81:C0. Expected `<ol>` to be at an indentation of 2 but was found at 0.  block-indentation\n  88:0  error  Incorrect indentation for `<!-- /DEUTSCH -->` beginning at L88:C0. Expected `<!-- /DEUTSCH -->` to be at an indentation of 2 but was found at 0.  block-indentation\n  93:0  error  Incorrect indentation for `<br>` beginning at L93:C0. Expected `<br>` to be at an indentation of 2 but was found at 0.  block-indentation\n  97:0  error  Incorrect indentation for `<button>` beginning at L97:C0. Expected `<button>` to be at an indentation of 2 but was found at 0.  block-indentation\n  98:0  error  Incorrect indentation for `<br>` beginning at L98:C0. Expected `<br>` to be at an indentation of 2 but was found at 0.  block-indentation\n  101:0  error  Incorrect indentation for `<button>` beginning at L101:C0. Expected `<button>` to be at an indentation of 2 but was found at 0.  block-indentation\n  102:0  error  Incorrect indentation for `<br>` beginning at L102:C0. Expected `<br>` to be at an indentation of 2 but was found at 0.  block-indentation\n  104:0  error  Incorrect indentation for `<!--\n<button type="button" {{action "newDubTrack"}}>Create new Dub-Track</button>\n-->` beginning at L104:C0. Expected `<!--\n<button type="button" {{action "newDubTrack"}}>Create new Dub-Track</button>\n-->` to be at an indentation of 2 but was found at 0.  block-indentation\n  8:0  error  img tags must have an alt attribute  img-alt-attributes\n  55:0  error  HTML comment detected  no-html-comments\n  68:0  error  HTML comment detected  no-html-comments\n  69:0  error  HTML comment detected  no-html-comments\n  79:0  error  HTML comment detected  no-html-comments\n  88:0  error  HTML comment detected  no-html-comments\n  104:0  error  HTML comment detected  no-html-comments\n  8:5  error  elements cannot have inline styles  no-inline-styles\n  12:141  error  elements cannot have inline styles  no-inline-styles\n  25:6  error  elements cannot have inline styles  no-inline-styles\n  26:36  error  elements cannot have inline styles  no-inline-styles\n  29:6  error  elements cannot have inline styles  no-inline-styles\n  30:37  error  elements cannot have inline styles  no-inline-styles\n  37:8  error  elements cannot have inline styles  no-inline-styles\n  44:6  error  elements cannot have inline styles  no-inline-styles\n  45:22  error  elements cannot have inline styles  no-inline-styles\n  67:5  error  elements cannot have inline styles  no-inline-styles\n  80:26  error  elements cannot have inline styles  no-inline-styles\n  81:4  error  elements cannot have inline styles  no-inline-styles\n  82:180  error  elements cannot have inline styles  no-inline-styles\n  83:99  error  elements cannot have inline styles  no-inline-styles\n  84:264  error  elements cannot have inline styles  no-inline-styles\n  85:390  error  elements cannot have inline styles  no-inline-styles\n  86:92  error  elements cannot have inline styles  no-inline-styles\n  12:63  error  Do not use <input> inside an <a> element with the `href` attribute  no-nested-interactive\n  12:8  error  Unnecessary string concatenation. Use {{sharedDubTrackData.dubTrackUrl}} instead of "{{sharedDubTrackData.dubTrackUrl}}".  no-unnecessary-concat\n  12:104  error  Unnecessary string concatenation. Use {{sharedDubTrackData.dubTrackUrl}} instead of "{{sharedDubTrackData.dubTrackUrl}}".  no-unnecessary-concat\n  94:35  error  Unnecessary string concatenation. Use {{videoId}} instead of "{{videoId}}".  no-unnecessary-concat\n  12:52  error  you must use double quotes in templates  quotes\n  13:57  error  you must use double quotes in templates  quotes\n  13:70  error  you must use double quotes in templates  quotes\n  51:13  error  you must use double quotes in templates  quotes\n  51:29  error  you must use double quotes in templates  quotes\n  39:0  error  Using an {{else}} block with {{unless}} should be avoided.  simple-unless\n  36:0  error  Using an {{else}} block with {{unless}} should be avoided.  simple-unless\n  67:5  error  Concatenated styles must be marked as `htmlSafe`.  style-concatenation\n');
+  });
+  QUnit.test('sparta/templates/index.hbs', function (assert) {
+    assert.expect(1);
+    assert.ok(true, 'sparta/templates/index.hbs should pass TemplateLint.\n\n');
+  });
+  QUnit.test('sparta/templates/library.hbs', function (assert) {
+    assert.expect(1);
+    assert.ok(true, 'sparta/templates/library.hbs should pass TemplateLint.\n\n');
+  });
+  QUnit.test('sparta/templates/new.hbs', function (assert) {
+    assert.expect(1);
+    assert.ok(true, 'sparta/templates/new.hbs should pass TemplateLint.\n\n');
   });
 });
-define('sparta/tests/test-helper', ['exports', 'sparta/tests/helpers/resolver', 'ember-qunit'], function (exports, _spartaTestsHelpersResolver, _emberQunit) {
+define("sparta/tests/lint/tests.lint-test", [], function () {
+  "use strict";
 
-  (0, _emberQunit.setResolver)(_spartaTestsHelpersResolver['default']);
-});
-define('sparta/tests/test-helper.jshint.lint-test', ['exports'], function (exports) {
-  'use strict';
-
-  QUnit.module('JSHint | test-helper.js');
-  QUnit.test('should pass jshint', function (assert) {
+  QUnit.module('ESLint | tests');
+  QUnit.test('test-helper.js', function (assert) {
     assert.expect(1);
-    assert.ok(true, 'test-helper.js should pass jshint.');
+    assert.ok(true, 'test-helper.js should pass ESLint\n\n');
   });
 });
-/* jshint ignore:start */
+define("sparta/tests/test-helper", ["sparta/app", "sparta/config/environment", "@ember/test-helpers", "ember-qunit"], function (_app, _environment, _testHelpers, _emberQunit) {
+  "use strict";
+
+  (0, _testHelpers.setApplication)(_app.default.create(_environment.default.APP));
+  (0, _emberQunit.start)();
+});
+define('sparta/config/environment', [], function() {
+  var prefix = 'sparta';
+try {
+  var metaName = prefix + '/config/environment';
+  var rawConfig = document.querySelector('meta[name="' + metaName + '"]').getAttribute('content');
+  var config = JSON.parse(decodeURIComponent(rawConfig));
+
+  var exports = { 'default': config };
+
+  Object.defineProperty(exports, '__esModule', { value: true });
+
+  return exports;
+}
+catch(err) {
+  throw new Error('Could not read config from meta tag with name "' + metaName + '".');
+}
+
+});
 
 require('sparta/tests/test-helper');
 EmberENV.TESTS_FILE_LOADED = true;
-
-/* jshint ignore:end */
 //# sourceMappingURL=tests.map

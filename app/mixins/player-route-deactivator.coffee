@@ -1,3 +1,6 @@
+# for use in class:
+# import LoadingIndicator from "../mixins/player-route-deactivator"
+
 export default Ember.Mixin.create
   application: (->
     Ember.getOwner(@).lookup('controller:application')

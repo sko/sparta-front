@@ -1,3 +1,8 @@
+<div id="top-nav">
+  <span class="top-nav-button">{{#link-to 'index' class='top-nav-button'}}home{{/link-to}}</span>
+  <span class="top-nav-button">{{#link-to 'library' class='top-nav-button'}}library{{/link-to}}</span>
+</div>
 <input id="publish-url" type="hidden" value="{{backendUrlPrefix}}sparta/dub_track" />
 <input id="dub-data-url" type="hidden" value="{{backendUrlPrefix}}sparta/dub_track/:dubId" />
+<input id="dub-list-url" type="hidden" value="{{backendUrlPrefix}}sparta/dub_track_list" />
 {{outlet}}

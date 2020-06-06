@@ -1,15 +1,17 @@
-/* jshint node: true */
+'use strict';
 
 module.exports = function(environment) {
+  var backendUrl = (typeof(process.env.BACKEND_URL) == "undefined"||process.env.BACKEND_URL==null) ? 'http://localhost:3003/' : process.env.BACKEND_URL;
+
   var ENV = {
     modulePrefix: 'sparta',
-    environment: environment,
+    environment,
     rootURL: '/',
     locationType: 'auto',
     EmberENV: {
       FEATURES: {
         // Here you can enable experimental features on an ember canary build
-        // e.g. 'with-controller': true
+        // e.g. EMBER_NATIVE_DECORATOR_SUPPORT: true
       },
       EXTEND_PROTOTYPES: {
         // Prevent Ember Data from overriding Date.parse.
@@ -29,7 +31,7 @@ module.exports = function(environment) {
     // ENV.APP.LOG_TRANSITIONS = true;
     // ENV.APP.LOG_TRANSITIONS_INTERNAL = true;
     // ENV.APP.LOG_VIEW_LOOKUPS = true;
-    ENV.APP.backendUrlPrefix = '//192.168.0.2:3003/';
+    ENV.APP.backendUrlPrefix = backendUrl;
   }
 
   if (environment === 'test') {

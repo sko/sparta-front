@@ -1,5 +1,9 @@
 {{yield}}
-
+{{!--
+{{#unless initialllyClicked}}
+<button id="init-audio_once" type="button" style="background-color: yellow;" {{action "initAudio"}}>Click Required</button>
+{{/unless}}
+--}}
 {{#each sharedDubTrackUrls as |sharedDubTrackData idx|}}
 <img style="border; 0px;" src="https://img.youtube.com/vi/{{sharedDubTrackData.videoId}}/default.jpg"> -
 {{#if application.isMobile}}
@@ -36,9 +40,11 @@
 <span>Audio Saved</span>
 {{/unless}}
 </span>
+{{#if audioBuffer}}
 <span style="margin: 0px 0px 0px 20px;">
 <button type="button" style="background-color: green;" {{action "shareVideo"}}>Share Video</button>
 </span>
+{{/if}}
 {{/if}}
 {{/if}}
 
@@ -58,16 +64,29 @@ Creating a Dub-Track involves 2 Phases: <span class="howTo phase1">First you onl
   <li class="howTo phase2">If you want the Video to start some Time before Your Dub-Track then you can change the Video-Start-Secs now to an earlier moment and click <button type="button">Set Cutting Data</button>. You'll notice that the value of "Dub-Track Delay Milliseconds" will change accordingly, meaning that the Dub-Track will start some Time after the Video.</li>
 </ol>
 -->
-<div style="width: {{playerWidth}}px; margin-top: 7px;">
-With the <button type="button" style="background-color: yellow;">Play Orig</button> button you can always replay the original soundtrack. After clicking <button type="button">Start Record Audio</button> the button changes to <button style="background-color:red;" type="button">Stop Record Audio</button>.
-</div>
-<ol style="margin-top: 0px; margin-bottom: 0px; padding: 10px; width: {{playerWidth}}px;">
+<div style="width: {{playerWidth}}px; margin-top: 7px;" class="howTo phase1">
+<!--The <button type="button">Start Record Audio</button> will change to <button style="background-color:red;" type="button">Stop Record Audio</button> after clicking.-->
+<!-- ENGLISH
+With the <button type="button" style="background-color: yellow;">Play Orig</button> button you can always replay the original soundtrack.
+<ol style="margin-top: 0px; margin-bottom: 0px; padding-left: 20px;">
   <li class="howTo phase1">Click <button type="button">Start Record Audio</button> and say the name of your favorite city when Leonidas would say Sparta. Then click <button style="background-color:red;" type="button">Stop Record Audio</button> immediately.</li>
-  <li class="howTo phase2">Check the correct moment of your recording by clicking <button type="button" style="background-color: blue;">Play Dub</button></li>
+  <li class="howTo phase2">Check the correct timing of your recording by clicking <button type="button" style="background-color: blue;">Play Dub</button></li>
   <li class="howTo phase1">Now set the value in "Inner Dub-Track Delay Milliseconds" to 1600 and click <button type="button">Set Dub-Track Delay</button>, so the original soundtrack will be audible until your dub. Check again with <button type="button" style="background-color: blue;">Play Dub</button> and fine-tune the delay-value as necessary.</li>
-  <li class="howTo phase2">Now you can start the Video 3 more seconds before Your Dub-Track by changing the Video-Start-Secs from 49 to 46 and click <button type="button">Set Cutting Data</button>. You'll notice that the value of "Dub-Track Delay Milliseconds" will change accordingly, meaning that the Dub-Track will start some Time after the Video. Clicking <button type="button" style="background-color: blue;">Play Dub</button> will show the changes.</li>
+  <li class="howTo phase2">Now you can start the Video 3 more seconds before Your Dub-Track by changing the "Video-Start-Secs" from 49 to 46 and click <button type="button">Set Cutting Data</button>. You'll notice that the value of "Dub-Track Delay Milliseconds" will change accordingly, meaning that the Dub-Track will start some Time after the Video. Clicking <button type="button" style="background-color: blue;">Play Dub</button> will show the changes.</li>
   <li class="howTo phase1">Now you can share the Dub-Track by clicking <button type="button" style="background-color: green;">Share Video</button>. After short time you'll see right above the video an url that you can share for direct access. You can also share via whatsapp on smartphones.</li>
 </ol>
+/ENGLISH -->
+<!-- DEUTSCH -->
+Mit <button type="button" style="background-color: yellow;">Play Orig</button> kann immer die originale Audiospur abgespielt werden.
+<ol style="margin-top: 0px; margin-bottom: 0px; padding-left: 20px;">
+  <li class="howTo phase1">Klick <button type="button">Start Record Audio</button> und sag den Namen deiner Stadt wenn Leonidas Sparta sagen würde. Danach klick sofort auf <button style="background-color:red;" type="button">Stop Record Audio</button>.</li>
+  <li class="howTo phase2">Überprüfe das korrekte Timing deiner Aufnahme mit <button type="button" style="background-color: blue;">Play Dub</button></li>
+  <li class="howTo phase1">Setze den Wert "Inner Dub-Track Delay Milliseconds" auf 1600 und klick <button type="button">Set Dub-Track Delay</button>, dadurch wird der Originalton bis zu deiner Aufnahme hörbar. Überprüfe das Timing wieder mit <button type="button" style="background-color: blue;">Play Dub</button> und passe den eingesetzten Wert falls nötig an.</li>
+  <li class="howTo phase2">Jetzt kannst du das Video 3 Sekunden früher starten lassen indem du den Wert "Video-Start-Secs" von 49 auf 46 änderst und <button type="button">Set Cutting Data</button> klickst. Der Wert "Dub-Track Delay Milliseconds" wird entsprechend um 3000 erhöht - das bedeutet daß deine Audioüberlagerung 3 Sekunden nach dem Videostart beginnt. Klick <button type="button" style="background-color: blue;">Play Dub</button> um die Änderungen zu überprüfen.</li>
+  <li class="howTo phase1">Jetzt kannst du deine Synchronisierung mit <button type="button" style="background-color: green;">Share Video</button> teilen. Nach kurzer Zeit siehst du gleich über dem Video eine Url die du an Freunde verschicken kannst. Auf Smartphones kannst du auch direkt über Whatsapp teilen.</li>
+</ol>
+<!-- /DEUTSCH -->
+</div>
 {{/if}}
 
 {{#if (or initialPlayed showHowTo)}}
