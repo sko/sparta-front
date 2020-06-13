@@ -15,6 +15,12 @@ module.exports = {
     browser: true
   },
   rules: {
+    "ember/use-brace-expansion": "warn",
+    "ember/no-observers": "warn",
+    "no-unused-vars": ["error", { "varsIgnorePattern": "^_", "argsIgnorePattern": "^_" }],
+    "no-useless-escape": "warn",
+    "no-console": "warn",
+    "no-constant-condition": "warn"
   },
   overrides: [
     // node files

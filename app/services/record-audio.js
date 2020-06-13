@@ -7,7 +7,9 @@ export default Service.extend({
   config: null,
   bufferLen: -1,
   numChannels: -1,
-  recordBuffers: [],
+  recordBuffers: computed(function() {
+    return [];
+  }),
   recording: computed('curVideoSelector', 'resetMediaInputFlag', function() {
     return false;
   }),

@@ -1,0 +1,158 @@
+{{#if (eq currentStep 1)}}
+  {{!--
+  Step 1
+  --}}
+  <h3>
+    Schritt {{currentStep}}
+    <button type="button" style="margin-left: 20px;" {{action (mut currentStep) (add currentStep 1)}}>Weiter</button>
+  </h3>
+  {{#if isMobile}}
+  Wähle ein Video mit der gewünschten Filmszene auf <a href="https://www.youtu.be/" target="top">Youtube</a> aus und kopiere die Url über die <i>Teilen</i>-Funktion.<br><br>
+  <img style="float: left" src="/assets/images/yt-teilen-1.mobile.png"><span style="float: left;">&nbsp;=&gt;&nbsp;</span>
+  <img src="/assets/images/yt-teilen-2.mobile.png">
+  {{else}}
+  Wähle ein Video mit der gewünschten Filmszene auf <a href="https://www.youtube.com/" target="top">Youtube</a> aus und kopiere die Url über die <i>Teilen</i>-Funktion.<br><br>
+  <img style="float: left" src="/assets/images/yt-teilen-1.mobile.png"><span style="float: left;">&nbsp;=&gt;&nbsp;</span>
+  <img src="/assets/images/yt-teilen-2.png">
+  {{/if}}
+{{else}}
+{{#if (eq currentStep 2)}}
+  {{!--
+  Step 2
+  --}}
+
+  <h3>
+    <button type="button" style="margin-right: 20px;" {{action (mut currentStep) (add currentStep -1)}}>Zurück</button>
+    Schritt {{currentStep}}
+    <button type="button" style="margin-left: 20px;" {{action (mut currentStep) (add currentStep 1)}}>Weiter</button>
+  </h3>
+  Füge die kopierte Url in das Formular-Feld <span style="background-color: white;">[Video-Url]</span> ein.
+{{else}}
+{{#if (eq currentStep 3)}}
+  {{!--
+  Step 3
+  --}}
+  <h3>
+    <button type="button" style="margin-right: 20px;" {{action (mut currentStep) (add currentStep -1)}}>Zurück</button>
+    Schritt {{currentStep}}
+    <button type="button" style="margin-left: 20px;" {{action (mut currentStep) (add currentStep 1)}}>Weiter</button>
+  </h3>
+  Trage die Start- und End-Sekunden der gewünschten Szene in die Formular-Felder <span style="background-color: white;">[Szene-Start]</span> und <span style="background-color: white;">[Szene-Ende]</span> ein.
+{{else}}
+{{#if (eq currentStep 4)}}
+  {{!--
+  Step 4
+  --}}
+  <h3>
+    <button type="button" style="margin-right: 20px;" {{action (mut currentStep) (add currentStep -1)}}>Zurück</button>
+    Schritt {{currentStep}}
+    <button type="button" style="margin-left: 20px;" {{action (mut currentStep) (add currentStep 1)}}>Weiter</button>
+  </h3>
+  Speichere die Angaben mit <button type="button" style="background-color: red;">Set Cutting Data</button> und überprüfe mit <button type="button" style="background-color: yellow;">Play Orig</button> die korrekte Wiedergabe der Szene.
+{{else}}
+{{#if (eq currentStep 5)}}
+  {{!--
+  Step 5
+  --}}
+  <h3>
+    <button type="button" style="margin-right: 20px;" {{action (mut currentStep) (add currentStep -1)}}>Zurück</button>
+    Schritt {{currentStep}}
+    <button type="button" style="margin-left: 20px;" {{action (mut currentStep) (add currentStep 1)}}>Weiter</button>
+  </h3>
+  Starte die Audio-Aufnahme mit <button type="button">Start Record Audio</button> und sprich deinen Text zum passenden Zeitpunkt. Danach klick sofort auf <button style="background-color:red;" type="button">Stop Record Audio</button> um ab diesem Zeitpunkt wieder den Originalton zu hören.
+  Überprüfe das korrekte Timing deiner Aufnahme mit <button type="button" style="background-color: blue;">Play Dub</button>.
+  {{!--Der Original-Ton ist vorerst nur nach deiner Aufnahme zu hören.--}}
+{{else}}
+{{#if (eq currentStep 6)}}
+  {{!--
+  Step 7
+  --}}
+  <h3>
+    <button type="button" style="margin-right: 20px;" {{action (mut currentStep) (add currentStep -1)}}>Zurück</button>
+    Schritt {{currentStep}}
+    <button type="button" style="margin-left: 20px;" {{action (mut currentStep) (add currentStep 1)}}>Weiter</button>
+  </h3>
+  Um den Originalton bis zu deiner Aufnahme hörbar zu machen, markiere den gewünschten Synchronisationsbeginn mit <button type="button">Set Synchronisation Start</button>, wodurch der Zeitpunkt
+  ins Formular-Feld <span style="background-color: white;">[Synchronisations-Start nach Aufnahme-Start]</span> übernommen wird. Du kannst diesen Wert später direkt im Formular-Feld noch justieren.
+  Speichere den Wert mit <button type="button" style="background-color: red;">Set Dub-Track Delay</button> und überprüfe das Timing wieder mit <button type="button" style="background-color: blue;">Play Dub</button>.
+{{else}}
+{{#if (eq currentStep 7)}}
+  {{!--
+  Step 7
+  --}}
+  <h3>
+    <button type="button" style="margin-right: 20px;" {{action (mut currentStep) (add currentStep -1)}}>Zurück</button>
+    Schritt {{currentStep}}
+    {{!--
+    <button type="button" style="margin-left: 20px;" {{action (mut currentStep) (add currentStep 1)}}>Weiter</button>
+    --}}
+  </h3>
+  Wenn alles passt, dann kannst du mit <button type="button" style="background-color: green;">Share Video</button> deine Szenen-Synchronisation
+  sichern, und die App generiert eine Url die du an deine Freunde schicken kannst.
+  {{#if isMobile}}
+  Oder du teilst die Url mit dem <a href="">Share via Whatsapp</a>-Link.
+  {{/if}}
+{{/if}}
+{{/if}}
+{{/if}}
+{{/if}}
+{{/if}}
+{{/if}}
+{{/if}}
+<!--
+<div style="width: {{playerWidth}}px; margin-top: 7px;">
+Creating a Dub-Track involves 2 Phases: <span class="howTo phase1">First you only edit the Part/Timespan where you want to replace/dub the Video's Original Audiotrack.</span><span class="howTo phase2">Second, you optionally edit the actual start/end of the video if it should be different.</span>
+</div>
+<ol style="margin-top: 0px; margin-bottom: 0px; padding: 10px; width: {{playerWidth}}px;">
+  <li class="howTo phase1">Set Youtube Video-Id, Video-Start-Secs short before the time when the Dub-Track should start and Video-End-Secs after the Dub-Track should end. <span class="howTo phase2">You can later fine-tune the exact start-time of your Dub-Track, so that there's no gap between the original Audio-Track (@see 4.),</span> whereas the end-point currently can't be changed.</li>
+  <li class="howTo phase1">Click <button type="button">Start Record Audio</button> and Dub the Video. The button changes to <button style="background-color:red;" type="button">Stop Record Audio</button> and you have to click it right after your Dub-Track is complete and the original Track shall be audible again.</li>
+  <li class="howTo phase1">After Recording check your Dub-Track by clicking <button type="button" style="background-color: blue;">Play Dub</button></li>
+  <li class="howTo phase2">You can also fine-tune the Dub-Track's start-time if you want the Videos original preceding Audio-Track to play longer. Set the value in "Inner Dub-Track Delay Milliseconds"</li>
+  <li class="howTo phase2">If you want the Video to start some Time before Your Dub-Track then you can change the Video-Start-Secs now to an earlier moment and click <button type="button">Set Cutting Data</button>. You'll notice that the value of "Dub-Track Delay Milliseconds" will change accordingly, meaning that the Dub-Track will start some Time after the Video.</li>
+</ol>
+-->
+<!--The <button type="button">Start Record Audio</button> will change to <button style="background-color:red;" type="button">Stop Record Audio</button> after clicking.-->
+<!-- ENGLISH
+With the <button type="button" style="background-color: yellow;">Play Orig</button> button you can always replay the original soundtrack.
+<ol style="margin-top: 0px; margin-bottom: 0px; padding-left: 20px;">
+  <li class="howTo phase1">Click <button type="button">Start Record Audio</button> and say the name of your favorite city when Leonidas would say Sparta. Then click <button style="background-color:red;" type="button">Stop Record Audio</button> immediately.</li>
+  <li class="howTo phase2">Check the correct timing of your recording by clicking <button type="button" style="background-color: blue;">Play Dub</button></li>
+  <li class="howTo phase1">Now set the value in "Inner Dub-Track Delay Milliseconds" to 1600 and click <button type="button">Set Dub-Track Delay</button>, so the original soundtrack will be audible until your dub. Check again with <button type="button" style="background-color: blue;">Play Dub</button> and fine-tune the delay-value as necessary.</li>
+  <li class="howTo phase2">Now you can start the Video 3 more seconds before Your Dub-Track by changing the "Video-Start-Secs" from 49 to 46 and click <button type="button">Set Cutting Data</button>. You'll notice that the value of "Dub-Track Delay Milliseconds" will change accordingly, meaning that the Dub-Track will start some Time after the Video. Clicking <button type="button" style="background-color: blue;">Play Dub</button> will show the changes.</li>
+  <li class="howTo phase1">Now you can share the Dub-Track by clicking <button type="button" style="background-color: green;">Share Video</button>. After short time you'll see right above the video an url that you can share for direct access. You can also share via whatsapp on smartphones.</li>
+</ol>
+/ENGLISH -->
+<!-- DEUTSCH -->
+{{!--
+Mit <button type="button" style="background-color: yellow;">Play Orig</button> kann immer die originale Audiospur abgespielt werden.
+--}}
+{{!--
+<hr>
+<ol style="margin-top: 0px; margin-bottom: 0px; padding-left: 20px;">
+  <li class="howTo phase1">
+    {{#if (or application.isMobile true)}}
+    Video auf <a href="https://www.youtu.be/" target="top">Youtube</a> auswählen und Url über Teilen kopieren.<br>
+    <img src="/assets/images/yt-teilen-1.mobile.png"><br>
+    <img src="/assets/images/yt-teilen-2.mobile.png">
+    {{else}}
+    Video auf <a href="https://www.youtube.com/" target="top">Youtube</a> auswählen und Url oder Id kopieren.<br>
+    {{/if}}
+  </li>
+  <li class="howTo phase1">
+    In das Formular-Feld [<span style="background-color: white;">VideoUrl</span>] einfügen.
+  </li>
+  <li class="howTo phase1">
+    Start- und Endzeit des gewünschten Videos in die Formular-Felder [<span style="background-color: white;">Video Start Seconds</span>] und [<span style="background-color: white;">Video End Seconds</span>] eintagen.
+  </li>
+  <li class="howTo phase1">
+    <button type="button">Set Cutting Data</button>
+  </li>
+
+  <li class="howTo phase1">Klick <button type="button">Start Record Audio</button> und sag den Namen deiner Stadt wenn Leonidas Sparta sagen würde. Danach klick sofort auf <button style="background-color:red;" type="button">Stop Record Audio</button>.</li>
+  <li class="howTo phase2">Überprüfe das korrekte Timing deiner Aufnahme mit <button type="button" style="background-color: blue;">Play Dub</button></li>
+  <li class="howTo phase1">Setze den Wert "Inner Dub-Track Delay Milliseconds" auf 1600 und klick <button type="button">Set Dub-Track Delay</button>, dadurch wird der Originalton bis zu deiner Aufnahme hörbar. Überprüfe das Timing wieder mit <button type="button" style="background-color: blue;">Play Dub</button> und passe den eingesetzten Wert falls nötig an.</li>
+  <li class="howTo phase2">Jetzt kannst du das Video 3 Sekunden früher starten lassen indem du den Wert "Video-Start-Secs" von 49 auf 46 änderst und <button type="button">Set Cutting Data</button> klickst. Der Wert "Dub-Track Delay Milliseconds" wird entsprechend um 3000 erhöht - das bedeutet daß deine Audioüberlagerung 3 Sekunden nach dem Videostart beginnt. Klick <button type="button" style="background-color: blue;">Play Dub</button> um die Änderungen zu überprüfen.</li>
+  <li class="howTo phase1">Jetzt kannst du deine Synchronisierung mit <button type="button" style="background-color: green;">Share Video</button> teilen. Nach kurzer Zeit siehst du gleich über dem Video eine Url die du an Freunde verschicken kannst. Auf Smartphones kannst du auch direkt über Whatsapp teilen.</li>
+</ol>
+<!-- /DEUTSCH -->
+--}}
