@@ -46,7 +46,7 @@ export default Service.extend({
     this.get('recordBuffers').clear();
     return tmp; // returns an array of array containing data from various channels
   },
-  record() {
+  /*async */record() {
     this.setProperties({ shouldStop: false, stopped: false, recording: true });
     console.log('recordAudio - record: this.mediaRecorder.state = '+this.mediaRecorder.state);
     // this.mediaRecorder.state == 'recording'

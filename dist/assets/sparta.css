@@ -23,8 +23,23 @@ html.busy body #wait {
 }
 
 .howTo.phase1 {
-  background-color: #dfdfdf;
+  background-color: #3198af;
 }
 .howTo.phase2 {
   background-color: #e5e5e5;
+}
+
+#cutting-data-editor {
+  width: 500px;
+}
+
+.video-editor {
+  width: 400px;
+}
+
+#recordedRange {
+  position: relative;
+  top: -21px;
+  z-index: -10;
+  background-color: rgb(147, 241, 164, 1); /*rgb(255,0,0,0.9);*/
 }

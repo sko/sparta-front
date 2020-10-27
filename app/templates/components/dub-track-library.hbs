@@ -3,7 +3,7 @@
 {{#each dubTrackList as |dubTrack idx|}}
 <img style="border; 0px;" src="https://img.youtube.com/vi/{{dubTrack.videoId}}/default.jpg"> -
 {{#if application.isMobile}}
-<a href="whatsapp://send?text={{whatsappText dubTrack.dubTrackUrl}}" data-action="share/whatsapp/share">Share via Whatsapp</a> or
+<a href="whatsapp://send?text={{whatsapp-text dubTrack.dubTrackUrl}}" data-action="share/whatsapp/share">Share via Whatsapp</a> or
 {{/if}}
 <a href="{{dubTrack.dubTrackUrl}}" target='dubTrack'><input readonly id="share_{{idx}}" value="{{dubTrack.dubTrackUrl}}" style="width: 300px; border: 0px; color: blue;"></a>
 <button type="button" {{action "copyToClipboard" (append '#share' idx '_')}}>Copy Link to Clipboard</button>

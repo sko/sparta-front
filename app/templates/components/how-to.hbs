@@ -11,7 +11,7 @@
   <img style="float: left" src="/assets/images/yt-teilen-1.mobile.png"><span style="float: left;">&nbsp;=&gt;&nbsp;</span>
   <img src="/assets/images/yt-teilen-2.mobile.png">
   {{else}}
-  Wähle ein Video mit der gewünschten Filmszene auf <a href="https://www.youtube.com/" target="top">Youtube</a> aus und kopiere die Url über die <i>Teilen</i>-Funktion.<br><br>
+  Wähle ein Video mit der gewünschten Filmszene auf <a href="https://www.youtube.com/" target="top">Youtube</a> aus und kopiere die Url über die <i>Teilen</i>-Funktion oder aus der Url-Leiste deines Browsers.<br><br>
   <img style="float: left" src="/assets/images/yt-teilen-1.mobile.png"><span style="float: left;">&nbsp;=&gt;&nbsp;</span>
   <img src="/assets/images/yt-teilen-2.png">
   {{/if}}
@@ -26,7 +26,17 @@
     Schritt {{currentStep}}
     <button type="button" style="margin-left: 20px;" {{action (mut currentStep) (add currentStep 1)}}>Weiter</button>
   </h3>
-  Füge die kopierte Url in das Formular-Feld <span style="background-color: white;">[Video-Url]</span> ein.
+  <ul>
+    <li>
+      Füge die kopierte Url in das Formular-Feld <span style="background-color: white;">[Video-Url]</span> ein.
+    </li>
+    <li>
+      Trage die Start- und End-Sekunden der gewünschten Szene in die Formular-Felder <span style="background-color: white;">[Szene-Start]</span> und <span style="background-color: white;">[Szene-Ende]</span> ein.
+    </li>
+    <li>
+      Speichere die Angaben mit <button type="button" style="background-color: red;">Set Cutting Data</button> und überprüfe mit <button type="button" style="background-color: yellow;">Play Orig</button> die korrekte Wiedergabe der Szene.
+    </li>
+  </ul>
 {{else}}
 {{#if (eq currentStep 3)}}
   {{!--
@@ -37,36 +47,23 @@
     Schritt {{currentStep}}
     <button type="button" style="margin-left: 20px;" {{action (mut currentStep) (add currentStep 1)}}>Weiter</button>
   </h3>
-  Trage die Start- und End-Sekunden der gewünschten Szene in die Formular-Felder <span style="background-color: white;">[Szene-Start]</span> und <span style="background-color: white;">[Szene-Ende]</span> ein.
-{{else}}
-{{#if (eq currentStep 4)}}
-  {{!--
-  Step 4
-  --}}
-  <h3>
-    <button type="button" style="margin-right: 20px;" {{action (mut currentStep) (add currentStep -1)}}>Zurück</button>
-    Schritt {{currentStep}}
-    <button type="button" style="margin-left: 20px;" {{action (mut currentStep) (add currentStep 1)}}>Weiter</button>
-  </h3>
-  Speichere die Angaben mit <button type="button" style="background-color: red;">Set Cutting Data</button> und überprüfe mit <button type="button" style="background-color: yellow;">Play Orig</button> die korrekte Wiedergabe der Szene.
-{{else}}
-{{#if (eq currentStep 5)}}
-  {{!--
-  Step 5
-  --}}
-  <h3>
-    <button type="button" style="margin-right: 20px;" {{action (mut currentStep) (add currentStep -1)}}>Zurück</button>
-    Schritt {{currentStep}}
-    <button type="button" style="margin-left: 20px;" {{action (mut currentStep) (add currentStep 1)}}>Weiter</button>
-  </h3>
-  Starte die Audio-Aufnahme mit <button type="button">Start Record Audio</button> und sprich deinen Text zum passenden Zeitpunkt. Danach klick sofort auf <button style="background-color:red;" type="button">Stop Record Audio</button> um ab diesem Zeitpunkt wieder den Originalton zu hören.
-  Überprüfe das korrekte Timing deiner Aufnahme mit <button type="button" style="background-color: blue;">Play Dub</button>.
+  <ul>
+    <li>
+      Suche den Timecode für den Beginn deiner Aufnahme mit dem <input style="width: 50px;" class="select_video_position" type="range" min="0" max="10" value="5" step="1"> unter dem Video. Bei jedem ausgewählten Timecode
+      wird zur Orientierung für 1 Sekunde der Videoausschnitt angespielt.
+    </li>
+    <li>
+      Beginne deine Audio-Aufnahme mit <button type="button" style="background-color:rgb(147,241,164,1);">Start Record Audio</button> und sprich deinen Text sobald das Video gestartet ist. Danach klick sofort auf <button style="background-color:red;" type="button">Stop Record Audio</button> um später ab diesem Zeitpunkt wieder den Originalton zu hören.
+    </li>
+    <li>
+      Überprüfe das korrekte Timing deiner Aufnahme mit <button type="button" style="background-color: blue;">Play Dub</button>. Setze den Timecode wieder auf 0 um das gesamte Video abzuspielen.
+    </li>
+  </ul>
   {{!--Der Original-Ton ist vorerst nur nach deiner Aufnahme zu hören.--}}
 {{else}}
-{{#if (eq currentStep 6)}}
   {{!--
-  Step 7
-  --}}
+{{#if (eq currentStep 4)}}
+  Step 4
   <h3>
     <button type="button" style="margin-right: 20px;" {{action (mut currentStep) (add currentStep -1)}}>Zurück</button>
     Schritt {{currentStep}}
@@ -76,9 +73,9 @@
   ins Formular-Feld <span style="background-color: white;">[Synchronisations-Start nach Aufnahme-Start]</span> übernommen wird. Du kannst diesen Wert später direkt im Formular-Feld noch justieren.
   Speichere den Wert mit <button type="button" style="background-color: red;">Set Dub-Track Delay</button> und überprüfe das Timing wieder mit <button type="button" style="background-color: blue;">Play Dub</button>.
 {{else}}
-{{#if (eq currentStep 7)}}
+  --}}
   {{!--
-  Step 7
+  Step 4
   --}}
   <h3>
     <button type="button" style="margin-right: 20px;" {{action (mut currentStep) (add currentStep -1)}}>Zurück</button>
@@ -92,10 +89,6 @@
   {{#if isMobile}}
   Oder du teilst die Url mit dem <a href="">Share via Whatsapp</a>-Link.
   {{/if}}
-{{/if}}
-{{/if}}
-{{/if}}
-{{/if}}
 {{/if}}
 {{/if}}
 {{/if}}

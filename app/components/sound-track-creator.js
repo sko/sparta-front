@@ -5,7 +5,6 @@ import { getOwner } from '@ember/application';
 import { alias } from '@ember/object/computed';
 import { observer } from '@ember/object';
 import { debounce, schedule } from '@ember/runloop';
-// import { A } from '@ember/array';
 import $ from 'jquery';
 import LoadingIndicator from '../mixins/loading-indicator';
 
@@ -15,42 +14,56 @@ export default Component.extend(LoadingIndicator, {
   application: computed(function() {
     return getOwner(this).lookup('controller:application');
   }),
+  hideTitleSecs: null,//2, // null will use youtube-default (display title for 3 seconds)
   skipSample: false,
+  autoplay: true,
+  featurePresentation: false,
+  videoCountdownSecs: null,
+  initialPlayedWithHiddenTitle: null,
   showHowTo: false,
+  currentHowToStep: 1,
+  enableInnerDubDelay: false,
   howToObserver: observer('showHowTo', function(_sender, _key, _value, _rev) {
-    let videoProps = ['videoId', 'start', 'newStart', 'origDubTrackStartSecs', 'end', 'newEnd', 'audioBuffer', 'initialPlayed'];
+    let videoProps = ['videoId', 'start', 'newStart', 'origDubTrackStartSecs', 'end', 'newEnd', 'videoMilliSecs', 'videoSnippetStartMillis', 'audioBuffer', 'initialPlayed'];
     let dubTrackProps = ['dubTrackDelay', 'newDubTrackDelay', 'innerDubTrackDelay', 'newInnerDubTrackDelay'];
     if (this.get('showHowTo')) {
       for (let propKey of videoProps.concat(dubTrackProps)) this.set('howToOrig'+propKey, this.get(propKey));
-      // this.set('videoId', 'haNzpiLYdEk');
-      // this.set('origDubTrackStartSecs', this.set('newStart', this.set('start', 49)));
-      // this.set('newEnd', this.set('end', 55));
-      // this.set('audioBuffer', null);
-      // this.set('initialPlayed', true);
-      // this.set('orig', true);
-      this.setProperties({
+      this.setProperties(this.savedHowToProps || {
         videoId: null,
         start: 0,
         newStart: 0,
         origDubTrackStartSecs: 0,
         end: 1,
         newEnd: 1,
-        // videoMilliSecs: 0,
+        videoMilliSecs: 0,
+        videoSnippetStartMillis: null,
         audioBuffer: null,
         initialPlayed: true,
         orig: true
       });
       for (let propKey of dubTrackProps)
         this.set(propKey, 0);
-      // this.application.transitionToRoute('new');
+      this.renderRecordedRange(this.start, 0);
     } else {
+      this.set('savedHowToProps', {
+        videoId: this.videoId,
+        start: this.start,
+        newStart: this.newStart,
+        origDubTrackStartSecs: this.origDubTrackStartSecs,
+        end: this.end,
+        newEnd: this.newEnd,
+        videoMilliSecs: this.videoMilliSecs,
+        videoSnippetStartMillis: this.videoSnippetStartMillis,
+        audioBuffer: this.audioBuffer,
+        initialPlayed: this.initialPlayed,
+        orig: this.orig
+      });
       for (let propKey of videoProps.concat(dubTrackProps)) this.set(propKey, this.get('howToOrig'+propKey));
       for (let propKey of videoProps.concat(dubTrackProps)) this.set('howToOrig'+propKey, null);
+      if (this.audioBuffer) this.renderRecordedRange(this.start + this.dubTrackDelay / 1000);
     }
     if (!this.get('displayControls'))
       this.set('displayControls', true);
-    // this.get('player').destroy();
-    // this.initPlayer(false);
   }),
   audioContext: alias('recordAudio.audioContext'),
   dubSpecReady: false,
@@ -66,20 +79,45 @@ export default Component.extend(LoadingIndicator, {
   playerHeight: computed(function() {
     315
   }),
-  playerReady: computed(function() {
-    false
+  playerReady: computed({
+    get(_key) {
+      return this.get('_playerReady') || false;
+    },
+    set(_key, playerReady) {
+      return this.set('_playerReady', playerReady);
+    }
   }),
-  videoMilliSecs: 0,
-  videoMilliSecsPosSetCount: 0,
+  videoMilliSecs: 0, // shows current timecode in video after scene start (0)
   videoMilliSecsPosFlag: null,
   videoMilliSecsPosFlag2: null,
+  // slider-value starts with video-start-secs as millis
   videoMilliSecsPos: computed('start', 'videoMilliSecsPosFlag', 'videoMilliSecsPosFlag2', function() {
-    // console.log('videoMilliSecsPos: videoMilliSecs = ' + this.videoMilliSecs + ', videoMilliSecsPosFlag = ' + this.videoMilliSecsPosFlag);
-    // // if (this.videoMilliSecsPosFlag != null) this.player.seekTo(this.start + Math.floor(this.videoMilliSecs / 1000), false);
-    // if (this.videoMilliSecsPosFlag != null) this.send('playVideo', true);
-    // // if (this.videoMilliSecsPosFlag != null) this.player.pauseVideo();
+    let debugMsg = 'videoMilliSecsPos: videoMilliSecs = ' + this.videoMilliSecs + ', start = ' + this.start + ', seekTo = ' + (this.start + Math.floor(this.videoMilliSecs / 1000)) + ', videoMilliSecsPosFlag = ' + (this.videoMilliSecsPosFlag != null ? this.videoMilliSecsPosFlag.getTime() : null) + ', videoMilliSecsPosFlag2 = ' + (this.videoMilliSecsPosFlag2 != null ? this.videoMilliSecsPosFlag2.getTime() : null) + ', newDubTrackDelayFlag = ' + (this.newDubTrackDelayFlag != null ? this.newDubTrackDelayFlag.getTime() : null);
+    if (this.get('videoMilliSecsPosSeekTo')) debugMsg += ', [SeekTo]';
+    if (this.get('pauseVideoAfterSeekTo')) debugMsg += ', [SeekTo2]';
+    if (this.get('videoMilliSecsPosSeekTo3')) debugMsg += ', [SeekTo3]';
+    if (this.get('videoMilliSecsPosSeekTo4')) debugMsg += ', [SeekTo4]';
+    if (/*true || */this.videoMilliSecsPosFlag) console.log(debugMsg);
+
+    // seekTo doesn't work - only works with hole secs. our solution: play and pause via videoMilliSecsPosFlag
+    // if (this.videoMilliSecsPosFlag != null) this.player.seekTo(this.start + Math.floor(this.videoMilliSecs / 1000), false);
+    if (this.videoMilliSecsPosFlag != null) {
+      // this.set('disableControls', true);
+      this.set('videoMilliSecsPosSeekTo', true);
+      if (this.newDubTrackDelayFlag == null) {
+        this.get('player').mute();
+        if (this.videoStarted && this.videoPaused) this.setProperties({ setMarkerAfterPaused: true, /*videoStarted: false , videoPaused: false, */videoMilliSecsPosSeekTo3: false });
+        this.send('playVideo', true, true);
+      } else {
+        this.set('newDubTrackDelayFlag', null);
+        this.send('playVideo', false);
+      }
+    }
+
     return this.start * 1000 + this.videoMilliSecs;
   }),
+  videoMilliSecsPosSeekTo3: false, // when start from timecode 0 (no snippet)
+  videoSnippetStartMillis: null, // not null when timecode is changed by user to a value > 0
   videoSnippetDurationMillis: 1000,
   sharedDubTrackUrls: computed(function() {
     return [];
@@ -116,23 +154,54 @@ export default Component.extend(LoadingIndicator, {
   origDubTrackStartSecs: -1,
   start: -1,
   end: 1,
+  startFmtd: computed('start', function() {
+    return moment('1970-01-01 00:00:00').add(moment.duration(this.start == -1 ? 0 : this.start, 'seconds')).format( 'HH:mm:ss.SS').replace(/00:/g, '').replace(/\.[0]+$/, '');
+  }),
+  endFmtd: computed('end', function() {
+    return moment('1970-01-01 00:00:00').add(moment.duration(this.end, 'seconds')).format( 'HH:mm:ss.SS').replace(/00:/g, '').replace(/\.[0]+$/, '');
+  }),
   dubTrackDelay: 0,
   innerDubTrackDelay: 0,
   newStart: -1,
   newEnd: 1,
+  newStartFmtd: computed('start', {
+    get(_key) {
+      return moment('1970-01-01 00:00:00').add(moment.duration(this.newStart == -1 ? 0 : this.newStart, 'seconds')).format( 'HH:mm:ss.SS').replace(/00:/g, '').replace(/\.[0]+$/, '');
+    },
+    set(_key, newStartFmtd) {
+      let validMatch = ('00:00:' + newStartFmtd.replace(/^([0-9])$/, '0$1')).match(/[0-9]{2}:[0-9]{2}:[0-9]{2}(|\.[0-9]+)$/);
+      if (validMatch == null) return newStartFmtd;
+
+      this.set('newStart', moment.duration(validMatch[0]).asSeconds());
+      return newStartFmtd.replace(/00:/g, '');
+    }
+  }),
+  newEndFmtd: computed('end', {
+    get(_key) {
+      return moment('1970-01-01 00:00:00').add(moment.duration(this.newEnd, 'seconds')).format( 'HH:mm:ss.SS').replace(/00:/g, '').replace(/\.[0]+$/, '');
+    },
+    set(_key, newEndFmtd) {
+      let validMatch = ('00:00:' + newEndFmtd.replace(/^([0-9])$/, '0$1')).match(/[0-9]{2}:[0-9]{2}:[0-9]{2}(|\.[0-9]+)$/);
+      if (validMatch == null) return newEndFmtd;
+
+      this.set('newEnd', moment.duration(validMatch[0]).asSeconds());
+      return newEndFmtd.replace(/00:/g, '');
+    }
+  }),
   newDubTrackDelay: 0,
   newInnerDubTrackDelay: 0,
   cuttingDataComplete: computed('videoId', 'start', 'end', function() {
     return (this.videoId||'') != '' && this.start >= 0 && this.end > this.start;
   }),
   changeObserver: observer('start', 'newStart', 'end', 'newEnd', 'dubTrackDelay', 'newDubTrackDelay', 'innerDubTrackDelay', 'newInnerDubTrackDelay', function(_sender, _key, _value, _rev) {
+    // let newStartSecs = moment.duration(('00:00:' + this.newStartFmtd).match(/[0-9]{2}:[0-9]{2}:[0-9]{2}$/)[0]).asSeconds();
     var newCuttingData = false;
-    if (this.get('start') != parseInt(this.get('newStart'))) {
+    if (this.get('start') != this.get('newStart')) {
       $('#startSecs').css('background-color', 'red');
       newCuttingData = true;
     } else
       $('#startSecs').css('background-color', '');
-    if (this.get('end') != parseInt(this.get('newEnd'))) {
+    if (this.get('end') != this.get('newEnd')) {
       $('#endSecs').css('background-color', 'red');
       newCuttingData = true;
     } else
@@ -172,8 +241,8 @@ export default Component.extend(LoadingIndicator, {
     try {
       let audioContext = window.AudioContext||window.webkitAudioContext;
       this.set('audioContext', new audioContext({
-        latencyHint: 'interactive',
-        sampleRate: 44100
+        latencyHint: 'interactive'/*,
+        sampleRate: 44100*/
       }));
     } catch (error) {
       console.error('no audio-player-support', error);
@@ -197,13 +266,14 @@ export default Component.extend(LoadingIndicator, {
         let url = $('#dub-data-url').val().replace(/:dubId/, dubIdMatch[1])
         this.get('backendAdapter').request(url, 'GET').then((dubData) => {
             this.set('videoId', dubData.video_id);
-            this.set('origDubTrackStartSecs', dubData.start_secs + dubData.delay_millis / 1000);
-            this.set('start', dubData.start_secs);
-            this.set('end', dubData.end_secs);
+            this.set('videoTitle', dubData.video_title);
+            this.set('origDubTrackStartSecs', dubData.start_secs / 100 + dubData.delay_millis / 1000);
+            this.set('start', dubData.start_secs / 100);
+            this.set('end', dubData.end_secs / 100);
             this.set('dubTrackDelay', dubData.delay_millis);
             this.set('innerDubTrackDelay', dubData.inner_delay_millis);
-            this.set('newStart', dubData.start_secs);
-            this.set('newEnd', dubData.end_secs);
+            this.set('newStart', dubData.start_secs / 100);
+            this.set('newEnd', dubData.end_secs / 100);
             this.set('newDubTrackDelay', dubData.delay_millis);
             this.set('newInnerDubTrackDelay', dubData.inner_delay_millis);
             if (this.get('useAudioTag'))
@@ -229,8 +299,10 @@ export default Component.extend(LoadingIndicator, {
       // // navigator.permissions.query({name:'microphone'}).then((result) => {
       // if (navigator.userAgent.match(/Chrome/) && !this.get('application.isMobile')) {
         navigator.mediaDevices.enumerateDevices().then((devices) => {
+            // for (let audioinput of devices.filter((d) => d.kind == 'audioinput')) console.log(JSON.stringify(audioinput));
+
             var device = devices.filter((d) => d.kind == 'audioinput' && d.getCapabilities && d.getCapabilities().sampleRate && d.getCapabilities().channelCount)[0];
-            if (device == null) device = devices.filter((d) => d.kind == 'audioinput')[0];
+            if (device == null) device = devices.filter((d) => d.kind == 'audioinput' && (!d.label || d.label.match(/Monitor/) == null))[0];
             if (device != null) this.setupMic({video: false, audio: { deviceId: device.deviceId }});
             else this.setupMic({video: false, audio: true});
           });
@@ -267,8 +339,10 @@ export default Component.extend(LoadingIndicator, {
   },
   actions: {
     setVideoId() {
-      if (parseInt($('#startSecs').val()) >= parseInt($('#endSecs').val()))
-        $('#endSecs').val((parseInt($('#startSecs').val()) + this.get('end') - this.get('start')));
+      // if (parseInt($('#startSecs').val()) >= parseInt($('#endSecs').val()))
+      //   $('#endSecs').val((parseInt($('#startSecs').val()) + this.get('end') - this.get('start')));
+      if (this.newStart >= this.newEnd)
+        this.set('newEnd', this.newStart + this.get('end') - this.get('start'));
       if (!this.get('displayControls'))
         this.set('displayControls', true);
       if ([null,""].indexOf($('#videoUrl').val()) == -1) this.set('videoUrl', $('#videoUrl').val());
@@ -279,11 +353,17 @@ export default Component.extend(LoadingIndicator, {
       else
         extraDubTrackDelay = 0;
       if ($('#videoId').val() != '') this.set('videoId', $('#videoId').val());
-      let startSecsChange = parseInt($('#startSecs').val()) - this.get('start');
-      this.set('start', parseInt($('#startSecs').val()));
-      this.set('end', parseInt($('#endSecs').val()));
-      this.set('newStart', parseInt($('#startSecs').val()));
-      this.set('newEnd', parseInt($('#endSecs').val()));
+      // let startSecsChange = parseInt($('#startSecs').val()) - this.get('start');
+      // this.set('start', parseInt($('#startSecs').val()));
+      // this.set('end', parseInt($('#endSecs').val()));
+      // this.set('newStart', parseInt($('#startSecs').val()));
+      // this.set('newEnd', parseInt($('#endSecs').val()));
+      let startSecsChange = this.newStart - this.get('start');
+      // this.set('start', this.newStart);
+      this.set('start', this.videoSnippetStartMillis == null ? this.newStart : this.newStart + this.videoSnippetStartMillis / 1000);
+      this.set('end', this.newEnd);
+      // this.set('newStart', parseInt($('#startSecs').val()));
+      // this.set('newEnd', parseInt($('#endSecs').val()));
       if (noVideoChange) {
         let newDubTrackDelay = this.get('dubTrackDelay') - startSecsChange * 1000 - extraDubTrackDelay;
         if (newDubTrackDelay < 0) {
@@ -302,52 +382,108 @@ export default Component.extend(LoadingIndicator, {
       this.get('player').destroy();
       this.initPlayer(false);
     },
-    setDubTrackSecs() {
-      this.set('dubTrackDelay', parseInt($('#dubTrackDelayMillis').val()));
-      this.set('innerDubTrackDelay', parseInt($('#innerDubTrackDelayMillis').val()));
+    setDubTrackSecs(newDubTrackDelay = null) {
+      this.set('dubTrackDelay', newDubTrackDelay || parseInt($('#dubTrackDelayMillis').val()));
+      // this.send('playVideo', true);
+      this.set('newDubTrackDelayFlag', new Date());
+      this.send('setVideoMilliSecs', this.start * 1000 + this.dubTrackDelay);
+      this.renderRecordedRange(this.start + this.dubTrackDelay / 1000);
+      if (this.enableInnerDubDelay) this.set('innerDubTrackDelay', parseInt($('#innerDubTrackDelayMillis').val()));
     },
-    playVideo(orig = true) {
+    playVideo(orig = true, skipUnMute = false, justSeekTo = false) {
+      if (! (justSeekTo || this.setMarkerAfterPaused)) {
+        if (this.videoPaused) {
+          this.set('videoPaused', false);
+          // this.set('disableControls', true);
+          console.log('playVideo: restarting paused video ...');
+          this.player.playVideo();
+          return false;
+        }
+        if (this.videoStarted) {
+          if (!this.pausingVideo) {
+            this.set('pausingVideo', true);
+            console.log('playVideo: pausing started video ...');
+            this.player.pauseVideo();
+          }
+          return false;
+        }
+      }
+
       this.set('orig', orig);
       // if (orig) {
       if (true || orig) {
-        this.get('player').unMute();
+        if (!skipUnMute) this.get('player').unMute();
         // this.get('player').setVolume (this.get('volume') || 100)
       } // else {
         // this.get('player').mute()
         // // this.get('player').setVolume 0
       // }
 
-      // this.get('player').playVideo()
-      this.get('player').loadVideoById({
-        'videoId': this.get('videoId'),
-        // 'startSeconds': this.get('start') + (this.videoMilliSecsPosFlag == null ? 0 : this.videoMilliSecs / 1000),
-        'startSeconds': this.get('start') + ((this.videoMilliSecsPosFlag == null && this.videoSnippetStartMillis  == null) ? 0 : (this.videoSnippetStartMillis != null ? this.videoSnippetStartMillis : this.videoMilliSecs) / 1000),
-        // 'endSeconds': this.videoMilliSecsPosFlag == null ? this.get('end') : this.get('start') + this.videoMilliSecs / 1000 + Math.min(this.videoSnippetDurationMillis / 1000, this.end - this.start)
-        'endSeconds': (this.videoMilliSecsPosFlag == null && this.videoSnippetStartMillis == null) ? this.get('end') : this.get('start') + (this.videoSnippetStartMillis != null ? this.videoSnippetStartMillis : this.videoMilliSecs) / 1000 + Math.min(this.videoSnippetDurationMillis / 1000, this.end - this.start)
-      });
-      if (this.videoMilliSecsPosFlag != null) {
-        this.setProperties({ videoMilliSecsPosFlag: null/*, orig: true videoSnippetStartMillis: null*/, });
-      }/* else {
-        this.setProperties({ videoSnippetStartMillis: this.videoMilliSecs});
-      }*/
+      // this.get('player').playVideo();
+      // if (this.player.getPlayerState() == window.YT.PlayerState.PAUSED) { // (this.videoSnippetStartMillis != null)
+      //   this.get('player').playVideo();
+      // } else {
+        let startSeconds = this.get('start') + ((this.videoMilliSecsPosFlag == null && this.videoSnippetStartMillis == null) ? 0 : (this.videoSnippetStartMillis != null ? this.videoSnippetStartMillis : this.videoMilliSecs) / 1000);
+
+        // end-seconds can only be set with initOptions - so play after pause is not possible
+        // if (this.videoSnippetStartMillis && (this.player.getPlayerState() == window.YT.PlayerState.PAUSED) && this.orig && (this.videoSnippetStartMillis == this.videoMilliSecs)) {
+        //   // play orig preview from videoSnippetStartMillis
+        //   this.set('videoMilliSecsPosFlag', null);
+        //   this.set('videoMilliSecsPosSeekTo3', true);
+        //   this.player.playVideo();
+        //   return false;
+        // }
+
+        let videoConfig = {
+          'videoId': this.get('videoId'),
+          'startSeconds': startSeconds,
+          // user clicks play should not be limited to videoSnippetDurationMillis because pause is enabled and reset to videoSnippetStartMillis
+          'endSeconds': justSeekTo ? startSeconds : (((this.videoMilliSecsPosFlag == null && (this.orig || this.videoSnippetStartMillis == null)) || this.recording) ? this.get('end') : Math.min(startSeconds + (this.recordingDuration ? this.recordingDuration + (this.orig ? 0 : (this.dubTrackDelay - this.videoSnippetStartMillis)) : this.videoSnippetDurationMillis) / 1000, this.end))
+        }
+        if (videoConfig.endSeconds < videoConfig.startSeconds) videoConfig.endSeconds = this.end
+
+        let debugMsg = 'playVideo: justSeekTo = '+justSeekTo+', startSeconds = '+videoConfig.startSeconds+', endSeconds = '+videoConfig.endSeconds+', videoMilliSecsPosFlag = '+(this.videoMilliSecsPosFlag != null ? this.videoMilliSecsPosFlag.getTime() : null)+', videoSnippetStartMillis = '+this.videoSnippetStartMillis;
+        if (this.get('videoMilliSecsPosSeekTo')) debugMsg += ', [SeekTo]';
+        if (this.get('pauseVideoAfterSeekTo')) debugMsg += ', [SeekTo2]';
+        if (this.get('videoMilliSecsPosSeekTo3')) debugMsg += ', [SeekTo3]';
+        if (this.get('videoMilliSecsPosSeekTo4')) debugMsg += ', [SeekTo4]';
+        console.log(debugMsg);
+
+        this.get('player').loadVideoById(videoConfig);
+      // }
+
+      if (! justSeekTo) {
+        if (this.videoMilliSecsPosFlag != null) {
+          this.set('videoMilliSecsPosFlag', null);
+          if (this.videoMilliSecsPosSeekTo3) this.set('pauseVideoAfterSeekTo', true);
+          // if (this.videoMilliSecsPosSeekTo3) this.setProperties({ pauseVideoAfterSeekTo: true, videoMilliSecsPosSeekTo3: false });
+        } else {
+          // here we only get when played from timecode 0
+          this.set('videoMilliSecsPosSeekTo3', true);
+          // this.set('disableControls', true);
+        }
+      }
     },
     startRecording() {
-      // this.set('dubTrackDelay', 0);
-      // this.set('innerDubTrackDelay', 0);
-      // this.set('newDubTrackDelay', 0);
-      // this.set('newInnerDubTrackDelay', 0);
-      // this.set('recording', true);
       this.setProperties({
-        dubTrackDelay: 0,
+        dubTrackDelay: this.videoSnippetStartMillis != null ? this.videoSnippetStartMillis : 0,
         innerDubTrackDelay: 0,
-        newDubTrackDelay: 0,
+        newDubTrackDelay: this.videoSnippetStartMillis != null ? this.videoSnippetStartMillis : 0,
         newInnerDubTrackDelay: 0,
         recording: true
       });
       this.send('playVideo', false);
     },
     stopRecording() {
-      console.log('stop recording audio-track ...');
+      let startSeconds = this.get('start') + ((this.videoMilliSecsPosFlag == null && this.videoSnippetStartMillis == null) ? 0 : (this.videoSnippetStartMillis != null ? this.videoSnippetStartMillis : this.videoMilliSecs) / 1000);
+      let duration = Math.floor((this.get('player').getCurrentTime() - startSeconds) * 1000);
+      this.set('recordingDuration', duration);
+      console.log('stop recording audio-track after '+duration+' milliSecs...');
+      // let left = Math.round((startSeconds - this.start) / (this.end - this.start) * 300);
+      // let width = Math.round(duration / ((this.end - this.start) * 1000) * 300);
+      // document.getElementById('recordedRange').style="position: relative; z-index: -10; left: "+left+"px; top: -23px; width: "+width+"px; background-color: rgb(100,100,100,0.3);"
+      this.renderRecordedRange(startSeconds, duration);
+
       // this.set('recording', false);
       // this.set('recorded', true);
       this.setProperties({
@@ -385,6 +521,7 @@ export default Component.extend(LoadingIndicator, {
         }*/exportWAV, this.get('audioRecorder.config.mimeType'));
         this.get('audioRecorder').clear();
       }
+      this.player.stopVideo();
     },
     shareVideo() {
       let reader = new window.FileReader();
@@ -414,28 +551,70 @@ export default Component.extend(LoadingIndicator, {
       this.get('router').transitionTo('new');
     },
     setVideoMilliSecs(value) {
-      // let secs = Math.floor((this.get('player').getCurrentTime() - this.start) + value / 100 * (this.end - this.start)); // / 1000;
+      if (this.videoStarted && (! this.videoPaused)) {
+        if (this.orig) this.player.pauseVideo();
+        return false;
+      }
+
       let milliSecs = parseInt(value);
-      // this.set('videoMilliSecs', milliSecs - this.start * 1000);
       let videoMilliSecs = milliSecs - this.start * 1000;
-      this.setProperties({ videoMilliSecs: videoMilliSecs, videoSnippetStartMillis: videoMilliSecs != 0 ? videoMilliSecs : null });
-      if (videoMilliSecs == 0) {
-        console.log('setVideoMilliSecs: removing video snippet ...');
-        this.setProperties({ videoMilliSecsPosSetCount: 0, videoMilliSecsPosFlag: null });
-        return;
+      if (milliSecs >= this.end * 1000) {
+        alert('Timecode muss < Videoende sein.');
+        return false;
+      } else if (videoMilliSecs < 0) {
+        alert('Timecode muss >= Videoanfang sein.');
+        return false;
       }
-      // $('.select_video_position').val(Math.floor(secs / 10));
-      console.log('setVideoMilliSecs: videoMilliSecsPosSetCount = ' + this.videoMilliSecsPosSetCount + ', milliSecs = ' + milliSecs + ', videoMilliSecs = ' + this.videoMilliSecs);
-      if ((this.videoMilliSecsPosSetCount + 1) % 3 == 0) {
-        this.setProperties({ videoMilliSecsPosSetCount: 0/*, videoMilliSecsPosFlag: new Date()*/ });
-      } else {
-        this.set('videoMilliSecsPosSetCount', this.videoMilliSecsPosSetCount + 1);
-        // debounce(this, () => this.set('videoMilliSecsPosFlag', new Date()), 250);
-        debounce(this, () => this.set('videoMilliSecsPosFlag', this.videoSnippetStartMillis != null ? new Date() : null), 250);
+
+      if (this.videoSnippetStartMillis && (this.player.getPlayerState() == window.YT.PlayerState.PAUSED) && this.orig && (videoMilliSecs == this.videoMilliSecs)) {
+        console.log('setVideoMilliSecs: restarting paused snippet ...');
+        // play orig preview from videoSnippetStartMillis
+        this.set('videoMilliSecsPosSeekTo3', true);
+        // this.set('disableControls', true);
+        this.get('player').unMute();
+        this.player.playVideo();
+        return false;
       }
-      // this.player.seekTo(Math.floor(milliSecs / 1000), false);
-      // this.player.pauseVideo();
+
+      if (videoMilliSecs != this.videoMilliSecs) {
+        this.setProperties({ videoMilliSecs: videoMilliSecs, videoSnippetStartMillis: videoMilliSecs != 0 ? videoMilliSecs : null });
+        if (videoMilliSecs == 0) {
+          console.log('setVideoMilliSecs: removing video snippet ...');
+          // this.set('videoMilliSecsPosFlag', new Date()); // will play vid
+          // this.setProperties({ videoMilliSecsPosFlag: null, videoMilliSecsPosFlag2: new Date() });
+          this.setProperties({
+            videoMilliSecsPosFlag: null,
+            videoMilliSecsPosFlag2: new Date(), // updates posvalue for slider/range-input
+            videoMilliSecsPosSeekTo: true,
+            pauseVideoAfterSeekTo: true,
+            videoStarted: false,
+            pausingVideo: false,
+            videoPaused: false
+          });
+          this.get('player').mute();
+          this.send('playVideo', true, true, true);
+          return false;
+        }
+
+        console.log('setVideoMilliSecs: new milliSecs = ' + milliSecs + ', videoMilliSecs = ' + this.videoMilliSecs + ', videoStarted = ' + this.videoStarted + ', videoPaused = ' + this.videoPaused);
+        // if (this.videoStarted && this.videoPaused) {
+        //   this.setVideoMilliSecsDebounced();
+        // } else {
+          debounce(this, this.setVideoMilliSecsDebounced, 250);
+        // }
+      }
+      return false;
     }
+  },
+  setVideoMilliSecsDebounced() {
+    this.set('videoMilliSecsPosFlag', this.videoSnippetStartMillis != null ? new Date() : null);
+  },
+  renderRecordedRange(startSeconds, duration = null) {
+    console.log('renderRecordedRange: startSeconds = '+startSeconds+', duration = '+duration+', recordingDuration = '+this.recordingDuration);
+    if (duration == null) duration = this.get('recordingDuration');
+    let left = Math.round((startSeconds - this.start) / (this.end - this.start) * 300) + 2;
+    let width = Math.round(duration / ((this.end - this.start) * 1000) * 300);
+    document.getElementById('recordedRange').style="left: "+left+"px; width: "+width+"px;"
   },
   // audiobuffers can be started only once, so after end we setup next one for replay.
   initAudioBuffer(audioFileUrl) {
@@ -445,7 +624,7 @@ export default Component.extend(LoadingIndicator, {
         // if (this.get('videoStarted')) {
           // // this.get('audioBuffer').disconnect()
           // this.set('videoSnippetStartMillis', null);
-          $('#rec_ctrl').attr("disabled", true);
+          // $('#rec_ctrl').attr("disabled", true);
           this.get('player').unMute();
           // // this.get('player').setVolume (this.get('volume') || 100)
           return this.initAudioBuffer(audioFileUrl);
@@ -453,6 +632,11 @@ export default Component.extend(LoadingIndicator, {
       }));
   },
   setupYoutubeAPI(autoplay) {
+    if (document.getElementById('iframe_api') != null) {
+      this.initPlayer(autoplay);
+      return;
+    }
+
     // window.onYouTubeIframeAPIReady = this.onYouTubeIframeAPIReady.bind(this);
     window.onYouTubeIframeAPIReady = this.onYouTubeIframeAPIReady(autoplay).bind(this);
     let tag = document.createElement('script');
@@ -468,63 +652,144 @@ export default Component.extend(LoadingIndicator, {
     };
   },
   initPlayer(autoplay) {
+    // no floats on initial with firefox
+    let start = parseInt(this.get('start'));
+    // console.log('initPlayer: this.start = '+this.get('start'));
+
     this.set('player', new window.YT.Player('video', {
       width: this.get('playerWidth'),
       height: this.get('playerHeight'),
-      videoId: this.get('videoId'),
+      videoId: this.hideTitleSecs == null || !this.featurePresentation ? this.get('videoId') : 'rmSK1imravY',
       events: {
         'onReady': this.onYouTubePlayerReady.bind(this),
         'onStateChange': this.onYouTubePlayerStateChange.bind(this),
       },
       playerVars: {
-        start: this.get('start'),
-        end: this.get('end'),
+        start: start,
+        end: this.hideTitleSecs == null ? this.get('end') : start + this.hideTitleSecs,
+        // start: this.hideTitleSecs == null/* || !this.featurePresentation*/ ? start : 1,
+        // end: this.hideTitleSecs == null/* || !this.featurePresentation*/ ? parseInt(this.get('end')) : 1 + this.hideTitleSecs,
         showinfo: 0,
         controls: 0,
         version: 3,
         enablejsapi: 1,
-        html5: 1,
+        html5: 1/**/,
         autoplay: autoplay ? 1 : 0
       }
     }));
     // this.set('volume', 100); // this.get('player').getVolume()
+    if (this.hideTitleSecs != null && !this.featurePresentation) $('#video').hide();
   },
   onYouTubePlayerReady() {
     console.log('youTubePlayerReady ...');
     this.set('playerReady', true);
-    // if this.get('dubSpecReady') && (!this.get('initialPlayed'))
-    //   this.send 'playVideo', false
-    if (this.get('showHowTo') && (this.get('audioBuffer') == null))
-      this.send('playVideo', true);
+    if (this.hideTitleSecs != null) {
+      // this.player.mute();
+      this.set('initialPlayerVolume', this.player.getVolume());
+      if (!this.featurePresentation) this.player.setVolume(1);
+      window.setTimeout(() => {
+        // fallback id autoplay didn't start
+        if (this.videoCountdownSecs == null) {
+          this.set('hideTitleSecs', null);
+          this.get('player').destroy();
+          this.initPlayer(false);
+        }
+      }, 5000);
+    }
+    // if (this.get('dubSpecReady') && (!this.get('initialPlayed')))
+    //   this.send('playVideo', false);
+    // else {
+      if (this.get('showHowTo') && (this.get('audioBuffer') == null))
+        this.send('playVideo', true);
+    // }
   },
   onYouTubePlayerStateChange(event) {
-    console.log('yt-player-state: '+event.data+', videoStarted = '+this.get('videoStarted')+', playerState = '+this.player.getPlayerState()+', videoLoaded = '+this.get('player').getVideoLoadedFraction()+', recording = '+this.get('recording')+', initialPlayed = '+this.get('initialPlayed')+', orig = '+this.get('orig'));
+    // try {
+    let debugMsg = 'yt-player-state: '+event.data;
+    if (event.data != this.player.getPlayerState()) debugMsg += ',  playerState = '+this.player.getPlayerState();
+    debugMsg += ', videoLoaded = '+this.get('player').getVideoLoadedFraction()+', videoStarted = '+this.get('videoStarted')+
+                ', videoMilliSecsPosFlag = ' + (this.videoMilliSecsPosFlag != null ? this.videoMilliSecsPosFlag.getTime() : null) + ', videoMilliSecsPosFlag2 = ' + (this.videoMilliSecsPosFlag2 != null ? this.videoMilliSecsPosFlag2.getTime() : null);
+    if (!this.get('initialPlayed')) debugMsg += ', [FIRSTPLAY]';
+    if (!this.get('initialPlayed') && this.fixedFloatStart) debugMsg += ', [fixedFloatStart]';
+    if (this.get('orig')) debugMsg += ', [ORIG]';
+    if (this.get('recording')) debugMsg += ', [RECORDING]';
+    if (this.get('videoMilliSecsPosSeekTo')) debugMsg += ', [SeekTo]';
+    if (this.get('pauseVideoAfterSeekTo')) debugMsg += ', [SeekTo2]';
+    if (this.get('videoMilliSecsPosSeekTo3')) debugMsg += ', [SeekTo3]';
+    if (this.get('videoMilliSecsPosSeekTo4')) debugMsg += ', [SeekTo4]';
+    console.log(debugMsg);
+    // } catch (error) {
+    //   console.error('error on yt-player-state-change-callback: ', error);
+    // }
+
     switch (event.data) {
-      // {UNSTARTED: -1, ENDED: 0, PLAYING: 1, PAUSED: 2, BUFFERING: 3, CUED: 5}
+      // { UNSTARTED: -1, ENDED: 0, PLAYING: 1, PAUSED: 2, BUFFERING: 3, CUED: 5 }
       case window.YT.PlayerState.PLAYING:
+        if (!this.initialPlayed && this.hideTitleSecs) {
+          // on first-play (1. player initialized) youtube displays video-info for some time (showinfo param was deprecated in 2018)
+          // hack to prevent: play muted and hidden for hideTitleSecs, then replay. info is removed right after start.
+          this.set('videoCountdownSecs', this.hideTitleSecs);
+          let decrCountdown = () => {
+            if (this.set('videoCountdownSecs', this.videoCountdownSecs - 1) > 0)
+              window.setTimeout(() => this.set('videoCountdownSecs', /*this.videoCountdownSecs == 1 ? -1 : */this.videoCountdownSecs - 1), 1000);
+          };
+          window.setTimeout(decrCountdown, 1000);
+          return;
+        }
+        if (!this.fixedFloatStart && !this.initialPlayed && this.start % 1 != 0) {
+          this.set('fixedFloatStart', true);
+          this.player.seekTo(this.start);
+          return;
+        }
+
+        if (this.get('videoMilliSecsPosSeekTo')) {
+          this.set('videoMilliSecsPosSeekTo', false);
+          // this.get('player').unMute();
+          if (this.get('pauseVideoAfterSeekTo')) {
+            this.set('pauseVideoAfterSeekTo', false);
+            this.set('videoMilliSecsPosSeekTo3', false);
+            this.set('videoMilliSecsPosSeekTo4', true);
+            this.player.pauseVideo();
+            return;
+          } else {
+            this.get('player').unMute();
+            this.set('pauseVideoAfterSeekTo', true);
+          }
+        }
+
         if(!this.get('initialPlayed')) {
           if ((this.get('orig') == null) || this.get('orig'))
             this.set('orig', false);
-            // this.get('player').mute()
+            // this.get('player').mute();
         }
-        $('#play_orig').attr("disabled", true);
-        $('#play_dub').attr("disabled", true);
+        // $('#play_orig').attr("disabled", true);
+        // $('#play_dub').attr("disabled", true);
+        // $('#rec_ctrl').attr("disabled", true);
+
         var stopAudio = this.get('stopAudioCallback');
         if (stopAudio != null && this.get('audioBufferStarted'))
           stopAudio();
         this.set('videoStarted', true);
         console.log('yt-player started playing, orig = '+this.get('orig')+' ...');
-        window.setTimeout(this.displayVideoMillisCallback('100'), '100');
+
+        // if (this.get('initialPlayed') || this.get('recording'))
+        if ((this.get('initialPlayed') || this.get('recording')) && (!this.hideTitleSecs || this.initialPlayedWithHiddenTitle))
+          window.setTimeout(this.displayVideoMillisCallback('100'), '100');
+
         if(!this.get('orig')) {
           if (this.get('player').getVideoLoadedFraction() != 0) {
             if (this.get('recording')) {
               this.get('player').mute();
               console.log('start recording audio-track ...');
               if (navigator.userAgent.match(/Chrome/)) {
-                this.recordAudio.record();
+                // this.recordAudio.record();
+                // there is som delay in observing recording and videoStarted
+                window.setTimeout(() => this.recordAudio.record(), '200');
                 // this.recordAudio.start();
               } else {
-                this.get('audioRecorder').record(300);
+                // this.get('audioRecorder').record(300);
+                // there is som delay in observing recording and videoStarted
+                window.setTimeout(() => this.get('audioRecorder').record(300), '200');
               }
             } else {
               if (this.get('dubTrackDelay') <= 0)
@@ -537,7 +802,26 @@ export default Component.extend(LoadingIndicator, {
           }
         }
         break;
+      case window.YT.PlayerState.CUED:
       case window.YT.PlayerState.ENDED:
+        if (this.hideTitleSecs) {
+          if (!this.initialPlayed) {
+            // on first-play (1. player initialized) youtube displays video-info for some time (showinfo param was deprecated in 2018)
+            // hack to prevent: play muted and hidden for hideTitleSecs, then replay. info is removed right after start.
+            this.set('initialPlayed', true);
+            if (!this.featurePresentation) {
+              $('#video').show();
+              this.player.setVolume(this.get('initialPlayerVolume'));
+            }
+            if (this.autoplay) this.send('playVideo', false);
+            return;
+          } else if (this.videoStarted && this.hideTitleSecs) {
+            this.setProperties({ hideTitleSecs: null, initialPlayedWithHiddenTitle: new Date() });
+          } else {
+            return;
+          }
+        }
+
         console.log('stopAudioCallback == null: '+(this.get('stopAudioCallback')==null)+', recording = '+this.get('recording')+', audioBufferStarted = '+this.get('audioBufferStarted'));
         // this.audioContext.suspend();
         if (this.get('recording') && (this.get('player').getVideoLoadedFraction() != 0))
@@ -546,47 +830,101 @@ export default Component.extend(LoadingIndicator, {
         if(!this.get('initialPlayed'))
           this.set('initialPlayed', true);
         if (this.get('videoStarted')) {
-          // this.set('videoMilliSecs', 0);
-          if (this.videoSnippetStartMillis == null) this.set('videoMilliSecs', 0);
-          else this.set('videoMilliSecs', this.videoSnippetStartMillis);
-          // this.set('videoSnippetStartMillis', null);
+          // if (this.videoSnippetStartMillis == null) this.set('videoMilliSecs', 0);
+          if (this.videoSnippetStartMillis == null) {
+            if (this.videoMilliSecs != 0) {
+              this.set('videoMilliSecs', 0);
+              this.set('videoMilliSecsPosFlag2', new Date()); // shows pos-preview by start/pause video
+            }
+            this.set('videoMilliSecsPosSeekTo3', false);
+          // else this.set('videoMilliSecs', this.videoSnippetStartMillis);
+          } else {
+            // got to snippet-start for timecode-thumbnail
+            this.set('videoMilliSecs', this.videoSnippetStartMillis);
+            this.set('videoMilliSecsPosFlag', new Date()); // shows pos-preview by start/pause video
+          }
         }
         this.set('videoStarted', false);
+        if (this.setMarkerAfterPaused) {
+          this.setProperties({ setMarkerAfterPaused: null, pausingVideo: false, videoPaused: false });
+        }
+        this.set('disableControls', false);
+
         this.set('stopAudioCallback', null);
-        $('#play_orig').attr("disabled", false);
-        $('#play_dub').attr("disabled", false);
-        $('#rec_ctrl').attr("disabled", false);
+
+        // $('#play_orig').attr("disabled", false);
+        // $('#play_dub').attr("disabled", false);
+        // $('#rec_ctrl').attr("disabled", false);
+
         this.set('recorded', false);
+
+        if (this.recordingDuration == null) {
+          this.set('recordingDuration', this.audioBuffer.buffer.duration * 1000);
+          schedule("afterRender", () => this.renderRecordedRange(this.start + this.dubTrackDelay / 1000));
+        }
         // }
+        break;
+      case window.YT.PlayerState.PAUSED:
+        // if (! this.initialPlayed) {
+        //   this.set('initialPlayed', true);
+        //   this.player.playVideo();
+        //   break;
+        // }
+        if (!this.get('videoMilliSecsPosSeekTo4')) {
+          // this.set('pausingVideo', false);
+          // this.set('videoPaused', true);
+          this.setProperties({ pausingVideo: false, videoPaused: true });
+          // if (this.orig) $('#play_orig').attr("disabled", false);
+          // else $('#play_dub').attr("disabled", false);
+        } else {
+          // get here whenever paused after videoSnippetStartMillis is changed or play snippet
+          // (but not when continue playing orig or playing from 0 without previous change)
+          this.set('videoMilliSecsPosSeekTo4', false);
+          this.set('disableControls', false);
+          if (this.videoSnippetStartMillis) {
+            this.set('videoMilliSecs', this.videoSnippetStartMillis);
+            this.set('videoMilliSecsPosFlag2', new Date());
+          }
+        }
+        break;
     }
   },
+  // called after player started playing
   displayVideoMillisCallback(timeoutMillis) {
     return () => {
-      if (this.player.getPlayerState() != 0) {
+      if (this.player.getPlayerState() == 1) {
         let centiSecs = Math.floor((this.get('player').getCurrentTime() - this.start) * 1000); // / 1000;
         if (centiSecs >= 0) {
+          if (centiSecs == this.get('videoMilliSecs')) return;
           // console.log('displayVideoMillisCallback: centiSecs = ' + centiSecs + ', player.currentTime = ' + this.get('player').getCurrentTime());
+          // console.log('displayVideoMillisCallback: setting videoMilliSecs to ' + centiSecs);
           this.set('videoMilliSecs', centiSecs);
         }
-        if (this.get('player').getCurrentTime() <= this.end/* && this.player.getPlayerState() != 0*/) {
-          debounce(this, () => this.set('videoMilliSecsPosFlag2', new Date()), parseInt(timeoutMillis) + 100);
+        if (this.get('player').getCurrentTime() <= this.end) {
+          // debounce required or video-end will not be reached
+          // debounce(this, () => this.set('videoMilliSecsPosFlag2', new Date()), parseInt(timeoutMillis) + 100);
+          if (this.get('videoMilliSecsPosFlag') == null) this.set('videoMilliSecsPosFlag2', new Date());
+          else console.log('displayVideoMillisCallback: videoMilliSecsPosFlag = '+this.videoMilliSecsPosFlag.getTime());
           window.setTimeout(this.displayVideoMillisCallback(timeoutMillis), timeoutMillis);
         }
       }
     };
   },
   _startDubTrack() {
-    if (this.videoSnippetStartMillis != null && (this.videoSnippetStartMillis + this.videoSnippetDurationMillis - this.get('dubTrackDelay')) <= this.get('innerDubTrackDelay')) {
+    // if (this.videoSnippetStartMillis != null && (this.videoSnippetStartMillis + (this.recordingDuration||this.videoSnippetDurationMillis) - this.get('dubTrackDelay')) <= this.get('innerDubTrackDelay')) {
+    if (this.get('innerDubTrackDelay') >= 1 && this.videoSnippetStartMillis != null && (this.videoSnippetStartMillis + (this.recordingDuration||this.videoSnippetDurationMillis) - this.get('dubTrackDelay')) <= this.get('innerDubTrackDelay')) {
       console.log('not playing dub-track if snippet will end befor dub-track ...');
       return;
     }
     // if (this.get('innerDubTrackDelay') <= 0)
-    if (this.get('innerDubTrackDelay') <= 0 || this.videoSnippetStartMillis != null)
-      this.get('player').mute();
-    else
+    if (this.get('innerDubTrackDelay') <= 0 || this.videoSnippetStartMillis != null) {
+      // this.get('player').mute();
+      if (this.videoSnippetStartMillis == null || this.videoSnippetStartMillis >= (this.get('dubTrackDelay')||0)) this.get('player').mute();
+    } else
       // window.setTimeout(this.get('player').mute.bind(this.get('player')), this.get('innerDubTrackDelay'));
       window.setTimeout(() => this.get('player').mute(), this.get('innerDubTrackDelay'));
-    console.log('start playing audio-track; player.startSeconds = '+this.get('start')+', player.getCurrentTime = '+this.get('player').getCurrentTime() + ', audioContext.state = ' + this.audioContext.state + ', audioContext.currentTime = ' + this.audioContext.currentTime + ', dubTrackDelay = ' + this.get('dubTrackDelay') + ', videoMilliSecs = ' + this.videoMilliSecs + ', videoMilliSecsPos = ' + this.videoMilliSecsPos + ', videoSnippetStartMillis = ' + this.videoSnippetStartMillis);
+
+    console.log('start playing audio-track; player.startSeconds = '+this.get('start')+', player.getCurrentTime = '+this.get('player').getCurrentTime() + ', audioContext.state = ' + this.audioContext.state + ', audioContext.currentTime = ' + this.audioContext.currentTime + ', dubTrackDelay = ' + this.get('dubTrackDelay') + ', innerDubTrackDelay = ' + this.get('innerDubTrackDelay') + ', videoMilliSecs = ' + this.videoMilliSecs + ', videoSnippetStartMillis = ' + this.videoSnippetStartMillis);
     if (this.get('useAudioTag')) {
       $('audio')[0].currentTime = 0.2; // this.get('player').getCurrentTime() - this.get('start');
       console.log('currentTime = '+$('audio')[0].currentTime);
@@ -594,23 +932,16 @@ export default Component.extend(LoadingIndicator, {
     } else {
       // if (this.get('audioBuffer') != null) {
       try {
-        // if (this.audioContext.state == 'suspended') this.audioContext.resume();
-        // this.get('audioBuffer').start(this.audioBuffer.context.currentTime + this.get('dubTrackDelay') / 1000, this.videoMilliSecs / 1000);
-        // this.get('audioBuffer').start(this.audioBuffer.context.currentTime + this.get('dubTrackDelay') / 1000, Math.floor((this.videoMilliSecsPos-this.start*1000) / 1000));
-        // this.get('audioBuffer').start(this.audioBuffer.context.currentTime + this.videoMilliSecs / 1000, this.get('dubTrackDelay') / 1000);
         if (this.videoSnippetStartMillis != null) {
-          this.get('audioBuffer').start(0, (this.videoSnippetStartMillis - this.get('dubTrackDelay')) / 1000);
-          // this.set('videoSnippetStartMillis', null);
+          // this.get('audioBuffer').start(0, (this.videoSnippetStartMillis - this.get('dubTrackDelay')) / 1000);
+          if (this.videoSnippetStartMillis >= this.get('dubTrackDelay')) {
+            this.get('audioBuffer').start(0, (this.videoSnippetStartMillis - this.get('dubTrackDelay')) / 1000);
+          } else {
+            window.setTimeout(() => { this.get('player').mute(); this.get('audioBuffer').start(); }, this.get('dubTrackDelay') - this.videoSnippetStartMillis);
+          }
         } else {
           this.get('audioBuffer').start();
         }
-        // window.setTimeout(() => {
-        //   this.get('audioBuffer').start(0, this.videoMilliSecs / 1000);
-        //   this.set('audioBufferStarted', true);
-        // }, this.get('dubTrackDelay'));
-        // this.get('audioBuffer').start(this.audioBuffer.context.currentTime + this.get('dubTrackDelay') / 1000, Math.floor((this.get('dubTrackDelay') - this.videoMilliSecs) / 1000));
-        // this.get('audioBuffer').start(); // this.get('player').getCurrentTime() - this.get('start')
-        // this.set('audioBufferStarted', true);
       } catch (error) {
         console.error('error starting audio-recorder: ', error);
         this.set('audioBuffer', null);
@@ -640,6 +971,11 @@ export default Component.extend(LoadingIndicator, {
             if (callback != null) {
               audio1.onended = () => {
                   console.log('connectAudioSource: onended ...');
+                  // if (this.recordingDuration == null) {
+                  //   this.set('recordingDuration', audio1.buffer.duration * 1000);
+                  //   // schedule("afterRender", () => this.initPlayer(false));
+                  //   this.renderRecordedRange(this.start + this.dubTrackDelay / 1000);
+                  // }
                   return callback({msg: 'finished'});
                 };
             }
@@ -651,9 +987,10 @@ export default Component.extend(LoadingIndicator, {
   },
   setupForm() {
     let formData = new FormData();
+    formData.append('dub_data[video_title]', this.get('videoTitle'));
     formData.append('dub_data[video_id]', this.get('videoId'));
-    formData.append('dub_data[start_secs]', this.get('start'));
-    formData.append('dub_data[end_secs]', this.get('end'));
+    formData.append('dub_data[start_secs]', this.get('start') * 100);
+    formData.append('dub_data[end_secs]', this.get('end') * 100);
     formData.append('dub_data[delay_millis]', this.get('dubTrackDelay'));
     formData.append('dub_data[inner_delay_millis]', this.get('innerDubTrackDelay'));
     formData.append('dub_data[dub_track]', this.get('dubTrackData'));

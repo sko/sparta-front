@@ -1,58 +1,174 @@
 {{yield}}
 
-<div style="position: fixed; top: 10px; left: 300px;">
-  {{#unless (eq application.currentRouteName 'new')}}
+<div style="position: fixed; top: 10px; left: 100px; width: 400px;">
+{{!--
+  {{#unless (eq router.currentRouteName 'new')}}
+  <div style="float: left; margin: 0px 10px 0px 0px;">
   {{~#link-to 'new'~}}Neues Video{{~/link-to~}}
+  </div>
   {{/unless}}
-  {{#if initialPlayed}}
-  {{#unless showHowTo}}
-  {{input type='checkbox' name='showHowTo' checked=showHowTo}}Show HowTo
-  {{/unless}}
+  <span style="float: left; margin: 0px 10px 0px 0px;">Titel: {{input id="videoTitle" value=videoTitle}}</span>
+--}}
+  {{#if (and initialPlayed (or (not hideTitleSecs) initialPlayedWithHiddenTitle))}}
+  {{#if (and audioBuffer recordingDuration)}}
+  <div>
+  <button type="button" style="background-color: green; float: right;" {{action "shareVideo"}}>Share Video</button>
+  </div>
+  {{/if}}
   {{/if}}
 </div>
 <hr>
-
 {{!--
 {{#unless initialllyClicked}}
 <button id="init-audio_once" type="button" style="background-color: yellow;" {{action "initAudio"}}>Click Required</button>
 {{/unless}}
 --}}
 {{#each sharedDubTrackUrls as |sharedDubTrackData idx|}}
-<img style="border; 0px;" src="https://img.youtube.com/vi/{{sharedDubTrackData.videoId}}/default.jpg"> -
-{{#if application.isMobile}}
-<a href="whatsapp://send?text={{sharedDubTrackData.whatsAppText}}" data-action="share/whatsapp/share">Share via Whatsapp</a> or
-{{/if}}
-<a href="{{sharedDubTrackData.dubTrackUrl}}" target='dubTrack'><input readonly id="share_{{idx}}" value="{{sharedDubTrackData.dubTrackUrl}}" style="width: 300px; border: 0px; color: blue;"></a>
-<button type="button" {{action "copyToClipboard" (append '#share' idx '_')}}>Copy Link to Clipboard</button>
-<br>
+  <img style="border; 0px;" src="https://img.youtube.com/vi/{{sharedDubTrackData.videoId}}/default.jpg"> -
+  {{#if application.isMobile}}
+  <a href="whatsapp://send?text={{sharedDubTrackData.whatsAppText}}" data-action="share/whatsapp/share">Share via Whatsapp</a> or
+  {{/if}}
+  <a href="{{sharedDubTrackData.dubTrackUrl}}" target='dubTrack'><input readonly id="share_{{idx}}" value="{{sharedDubTrackData.dubTrackUrl}}" style="width: 300px; border: 0px; color: blue;"></a>
+  <button type="button" {{action "copyToClipboard" (append '#share' idx '_')}}>Copy Link to Clipboard</button>
+  <br>
 {{/each}}
 
+<div id="cutting-data-editor">
+  {{!--
+  showVideoEditor = {{showVideoEditor}}, showHowTo = {{showHowTo}}, videoId = {{videoId}}
+  <hr>
+  --}}
+  {{#if (or showVideoEditor showHowTo (eq router.currentRouteName 'new'))}}
+    <button type="button" onclick={{action (mut showVideoEditor) false}}>-</button>
+    {{#if initialPlayed}}
+      {{!--#unless showHowTo--}}
+      <div style="float: right; background-color: #3198af;">
+      Show HowTo&nbsp;{{input type='checkbox' name='showHowTo' checked=showHowTo}}
+      </div>
+      {{!--/unless--}}
+    {{/if}}
+
+    {{#if (or (not showHowTo) (lt currentHowToStep 3))}}
+      <br style="clear: both;">
+      Titel: {{input id="videoTitle" value=videoTitle}}<br>
+      Video-Url: {{input id="videoUrl" value=videoUrl}} oder Video-Id: <input id="videoId" value="{{videoId}}"><br>
+      Szene-Start: {{input min="0" step="1" id="startSecs" value=newStartFmtd}} hh:mm:ss{{#if videoId}}.xx{{/if}} (aktuell: {{startFmtd}}{{!--; Änderung wird in Aufnahme-Verzögerung übernommen--}})<br>
+      Szene-Ende: {{input min="0" step="1" id="endSecs" value=newEndFmtd}} hh:mm:ss{{#if videoId}}.xx{{/if}} (aktuell: {{endFmtd}})<br>
+      <button type="button" id="setCuttingData" {{action "setVideoId"}}>Set Cutting Data</button>
+      {{#unless (eq router.currentRouteName 'new')}}
+        <div style="float: right; margin: 0px 10px 0px 0px;">
+        {{~#link-to 'new'~}}<button type="button" style="background-color: blue; float: right;">Neues Video</button>{{~/link-to~}}
+        </div>
+      {{/unless}}
+    {{/if}}
+
+    {{#if (and showHowTo (lt currentHowToStep 3))}}
+      <br>
+      <div style="width: {{playerWidth}}px; margin-top: 7px; padding: 0px 0px 20px 0px;" class="howTo phase1">
+        {{how-to subject=this isMobile=application.isMobile}}
+      </div>
+    {{/if}}
+  {{else}}
+    {{#if (or (and initialPlayed (or (not hideTitleSecs) initialPlayedWithHiddenTitle)) showHowTo)}}
+      <div style="float: left;" {{action (mut showVideoEditor) true}}><button type="button">+</button> Videoszenedaten bearbeiten</div>
+      <div style="float: right; background-color: #3198af;">
+      Show HowTo&nbsp;{{input type='checkbox' name='showHowTo' checked=showHowTo}}
+      </div>
+      <br style="clear: both;">
+    {{else}}
+      <span>{{videoTitle}}</span>
+    {{/if}}
+  {{/if}}
+  <hr>
+</div>
+
+{{#if (and showHowTo (gte currentHowToStep 3))}}
+<div style="width: {{playerWidth}}px; padding: 0px 0px 20px 0px;" class="howTo phase1">
+  {{how-to subject=this isMobile=application.isMobile}}
+</div>
+{{/if}}
+
 {{#if dubSpecReady}}
-<table>
+<table class="video-editor">
   <tr>
     <td>
       <div id="video"></div>
-      {{#if initialPlayed}}
-      <br>
       {{!--
-      <input style="width: 300px;" class="select_video_position" type="range" min="{{mult start 10}}" max="{{mult end 10}}" value="{{add (mult start 10) (floor (div videoMilliSecs 100))}}" step="1" oninput={{action 'setVideoMilliSecs' value='target.value'}}>
-      <input style="width: 300px;" class="select_video_position" type="range" min="{{mult start 1000}}" max="{{mult end 1000}}" value="{{add (mult start 1000) videoMilliSecs}}" step="100" oninput={{action 'setVideoMilliSecs' value='target.value'}}>
+      {{#if (and initialPlayed (or (not hideTitleSecs) initialPlayedWithHiddenTitle))}}
+      {{#if (and initialPlayed (not hideTitleSecs))}}
       --}}
-      <input style="width: 300px;" class="select_video_position" type="range" min="{{mult start 1000}}" max="{{mult end 1000}}" value="{{videoMilliSecsPos}}" step="100" oninput={{action 'setVideoMilliSecs' value='target.value'}}>
-      {{/if}}
-      {{#if (or initialPlayed showHowTo)}}
+      {{#if (and initialPlayed (or (not hideTitleSecs) initialPlayedWithHiddenTitle))}}
       <br>
-      <div style="width: 300px;">
-        <div id="video-milli-secs" style="width: 80px; height: 20px; border: solid 1px; font-weight: 800; text-align: right; float: left;">
-          {{videoMilliSecs}}
-        </div>
-        <div style="height: 20px; margin-left: 10px; float: left;">Millisekunden ab Szene-Start</div>
-      </div>
-      {{!---
-      <button type="button" {{action (mut newInnerDubTrackDelay) (mult videoMilliSecs 1000)}}>Set Synchronisation Start</button>
+      <input disabled={{or disableControls (or (and videoStarted (not (and videoPaused orig))) recording)}} style="width: 300px;" list="video_position_units" class="select_video_position" type="range" min="{{mult start 1000}}" max="{{mult end 1000}}" value="{{videoMilliSecsPos}}" step="100" oninput={{action 'setVideoMilliSecs' value='target.value'}}>
+      {{!--
+      <datalist id="video_position_units">
+        {{#each (range (mult start 1000) (mult end 1000) false 1000) as |n|}}
+          <option value={{n}} label="{{div n 1000}}s"></option>
+        {{/each}}
+      </datalist>
       --}}
-      {{#if audioBuffer}}
+      <div id="recordedRange" style="width: 0px;">&nbsp;</div>
+      <div style="position: relative; top: -20px; left: -3px; width: 300px; z-index: -10;">
+      {{#each (range 0 (sub end start)) as |n|}}
+        {{!--
+        <div style="font-size: 8px; position: absolute; left: {{sub (round (mult 300 (div n (sub end start)))) (round (mult (sub end start) (div n (sub end start))))}}px; width: 15px; float: left; z-index: -10; text-align: center;">
+        --}}
+        <div style="{{append (append 'font-size: 8px; position: absolute; left: ' (sub (round (mult 300 (div n (sub end start)))) (round (mult (sub end start) (div n (sub end start))))) '') 'px; width: 15px; float: left; z-index: -10; text-align: center;' ''}}">
+          <span style="position: absolute; left: 7px; top: -10px;">|</span>{{n}}
+        </div>
+      {{/each}}
+      {{#if videoSnippetStartMillis}}
+        <div style="{{append (append 'color: red; font-size: 8px; position: absolute; top: 7px; left: ' (sub (round (mult 300 (div (div videoSnippetStartMillis 1000.0) (sub end start)))) (round (mult (sub end start) (div (div videoSnippetStartMillis 1000.0) (sub end start))))) '') 'px; width: 15px; float: left; z-index: -10; text-align: center;' ''}}">
+          <span style="position: absolute; left: 7px; top: -17px;">|</span>{{format-float (div videoSnippetStartMillis 1000.0)}}
+        </div>
+      {{/if}}
+      </div>
+      {{/if}}
+      {{#if (or (and initialPlayed (or (not hideTitleSecs) initialPlayedWithHiddenTitle)) showHowTo)}}
+      <div style="position: relative; top: -5px;">
+        <div style="height: 20px; margin: 0px 5px 0px 0px; float: left;">Timecode</div>
+        {{!-- enable/show videoSnippetStartMillis when pausing orig
+        <button disabled={{and videoStarted (not (and videoPaused orig))}} type="button" style="float: left; margin: 0px 5px 0px 0px; padding: 0px 5px 0px 5px;" onclick={{action 'setVideoMilliSecs' (if (and videoStarted videoPaused orig videoSnippetStartMillis) (add (mult start 1000) videoSnippetStartMillis) (mult start 1000))}}>{{if (and videoStarted videoPaused orig videoSnippetStartMillis) (format-float (div videoSnippetStartMillis 1000.0)) 0}}</button>
+        --}}
+        {{!-- enable/show always from 0 --}}
+        <button disabled={{or disableControls (or (and videoStarted (not (and videoPaused orig))) recording)}} type="button" style="float: left; margin: 0px 5px 0px 0px; padding: 0px 5px 0px 5px;" onclick={{action 'setVideoMilliSecs' (mult start 1000)}}>0</button>
+        <div style="height: 20px; margin: 0px 5px 0px 5px; float: left;">oder Marker</div>
+        <button disabled={{or disableControls (or (and videoStarted (not pauseVideoOnPlay)) recording)}} type="button" style="float: left; margin: 0px 5px 0px 0px; padding: 0px 5px 0px 5px;" onclick={{action 'setVideoMilliSecs' (inc (add (mult start 1000) (or videoMilliSecs 0)) -100)}}>-</button>
+        <div id="video-milli-secs" style="width: 60px; height: 20px; border: solid 1px; font-weight: 800; text-align: right; float: left;">
+          {{format-float (div videoMilliSecs 1000.0)}}
+        </div>
+        <button disabled={{or disableControls (or (and videoStarted (not pauseVideoOnPlay)) recording)}} type="button" style="float: left; margin: 0px 0px 0px 5px; padding: 0px 5px 0px 5px;" onclick={{action 'setVideoMilliSecs' (inc (add (mult start 1000) (or videoMilliSecs 0)) 100)}}>+</button>
+        {{!--
+        <div style="height: 20px; margin-left: 10px; float: left;">Sekunden{{!-- nach Szene-Start}}</div>
+        --}}
+      </div>
+      {{#if (and enableInnerDubDelay audioBuffer)}}
       <button style="height: 20px; margin-left: 10px;" type="button" {{action (mut newInnerDubTrackDelay) videoMilliSecs}}>Set Synchronisation Start</button>
+      {{/if}}
+      {{else}}
+      {{#if (and (or hideTitleSecs initialPlayedWithHiddenTitle) (not featurePresentation))}}
+      {{#if autoplay}}
+      {{#if (and videoCountdownSecs (gte videoCountdownSecs 0))}}
+        <img src="/assets/images/busy.gif">
+        <br><br>
+        {{#if (gt videoCountdownSecs 0)}}
+          {{!----}}
+          Video startet in {{videoCountdownSecs}} Sekunden
+
+        {{/if}}
+      {{else}}
+        {{#if (and hideTitleSecs (or (eq videoCountdownSecs null) (gt videoCountdownSecs 0)))}}
+          <img src="/assets/images/busy.gif">
+          <br><br>
+          {{!----}}
+          Player wird initialisiert ...
+
+        {{/if}}
+      {{/if}}
+      {{else}}
+      <hr>
+      <button id="play_dub" disabled={{not initialPlayed}} type="button" style="background-color: blue;" {{action "playVideo" false}}>Play Dub</button>
+      {{/if}}
       {{/if}}
       {{/if}}
     </td>
@@ -73,6 +189,58 @@
     </td>
       --}}
   </tr>
+  <tr style="vertical-align: top; height: 75px;">
+    <td>
+      {{#if playerReady}}
+      {{#if (and (and initialPlayed (or (not hideTitleSecs) initialPlayedWithHiddenTitle)) displayControls)}}
+      <table>
+        <tr>
+          <td>
+      <div style="float: left; margin: 0px 10px 0px 0px;">
+        <button id="play_orig" disabled={{or (and disableControls (not videoStarted)) (or recording (and (or videoStarted videoPaused) (not orig)))}} type="button" style="background-color: yellow;" {{action "playVideo"}}>{{#if (and videoPaused orig)}}Continue{{else}}{{#if videoStarted}}Pause{{else}}Play{{/if}}{{/if}} Orig</button>
+      </div>
+          </td>
+          <td>
+      <div style="float: left; margin: 0px 10px 0px 10px;">
+        {{#unless recorded}}
+        {{#unless (and recording videoStarted)}}
+        <button id="rec_ctrl" disabled={{or disableControls (or recording (or videoStarted recorded))}} style="background-color:rgb(147,241,164,1);" type="button" {{action "startRecording"}}>{{#unless recording}}Start Record Audio{{else}}Video wird gestartet{{/unless}}</button>
+        {{else}}
+        <button style="background-color:rgb(255,0,0,1);" type="button" {{action "stopRecording"}}>Stop Record Audio</button>
+        {{/unless}}
+        {{else}}
+        <span>Audio Saved</span>
+        {{/unless}}
+      </div>
+          </td>
+          <td>
+      {{#if audioBuffer}}
+      <div>
+        <button id="play_dub" disabled={{or disableControls (or recording videoStarted)}} type="button" style="background-color: blue;" {{action "playVideo" false}}>{{#if (and videoPaused (not orig))}}Continue{{else}}Play{{/if}} Dub</button>
+      </div>
+      {{/if}}
+          </td>
+        </tr>
+        {{#if videoSnippetStartMillis}}
+        <tr>
+          <td colspan="3">
+            {{!--
+if (and videoStarted videoPaused orig videoSnippetStartMillis)
+            --}}
+      <div style="float: left; margin: 0px 10px 0px 0px;">
+        {{!--
+        <button id="play_snippet" disabled={{or recording (and videoStarted (not (and videoPaused orig)))}} type="button" style="background-color: yellow;" onclick={{action 'setVideoMilliSecs' (add (mult start 1000) videoSnippetStartMillis) true}}>Play Orig Snippet{{!-- from {{format-float (div videoSnippetStartMillis 1000.0)}}}}</button>
+        --}}
+        <button id="play_snippet" disabled={{or disableControls (or recording (and videoStarted (not (and videoPaused orig))))}} type="button" style="background-color: yellow;" onclick={{action 'setVideoMilliSecs' (add (mult start 1000) videoSnippetStartMillis) true}}>Play Orig Snippet{{!-- from {{format-float (div videoSnippetStartMillis 1000.0)}}--}}</button><span style="font-size: 10px; margin-left: 10px;">{{div videoSnippetDurationMillis 1000}} Sek. ab Marker-Timecode</span>
+      </div>
+          </td>
+        </tr>
+        {{/if}}
+      </table>
+      {{/if}}
+      {{/if}}
+    </td>
+  </tr>
 </table>
 {{!--
 <div  style="float: left;">
@@ -82,56 +250,33 @@
 <div id="video-milli-secs" style="position: relative; left: 350px; top: -100px; width: 100px; height: 50px; border: solid 1px; font-weight: 800; clear: both;">
   {{videoMilliSecs}}
 </div>
---}}
 <br style="clear: both;">
+--}}
 {{/if}}
 
-{{#if playerReady}}
-{{#if (and initialPlayed displayControls)}}
-{{#if audioBuffer}}
-<span style="float: left; margin-left: 0px 10px 0px 10px;">
-<button id="play_dub" type="button" style="background-color: blue;" {{action "playVideo" false}}>Play Dub</button>
-</span>
-{{/if}}
-<span style="float: left; margin-left: 0px 10px 0px 10px;">
-<button id="play_orig" type="button" style="background-color: yellow;" {{action "playVideo"}}>Play Orig</button>
-</span>
-<span>
-{{#unless recorded}}
-{{#unless recording}}
-<button id="rec_ctrl" type="button" {{action "startRecording"}}>Start Record Audio</button>
-{{else}}
-<button style="background-color:red;" type="button" {{action "stopRecording"}}>Stop Record Audio</button>
-{{/unless}}
-{{else}}
-<span>Audio Saved</span>
-{{/unless}}
-</span>
-{{#if audioBuffer}}
-<span style="margin: 0px 0px 0px 20px;">
-<button type="button" style="background-color: green;" {{action "shareVideo"}}>Share Video</button>
-</span>
-{{/if}}
-{{/if}}
-{{/if}}
-{{#if showHowTo}}
+{{#if (or (and initialPlayed (or (not hideTitleSecs) initialPlayedWithHiddenTitle)) showHowTo)}}
+{{#if (and audioBuffer recordingDuration)}}
 <br>
-<div style="width: {{playerWidth}}px; margin-top: 7px; padding: 0px 0px 20px 0px;" class="howTo phase1">
-  {{how-to isMobile=application.isMobile}}
+{{!--
+Aufnahme-Beginn ab Timecode: {{input type="number" min="0" step="100" id="dubTrackDelayMillis" value=newDubTrackDelay}} Sekunden (aktuell: {{dubTrackDelay}})<br>
+--}}
+<div>
+  {{input type="hidden" id="dubTrackDelayMillis" value=dubTrackDelay}}
+  <div style="height: 20px; margin: 0px 5px 0px 0px; float: left;">Aufnahme-Beginn verschieben zu Timecode</div>
+  <button disabled={{videoStarted}} type="button" style="float: left; margin: 0px 5px 0px 0px; padding: 0px 5px 0px 5px;" onclick={{action 'setDubTrackSecs' (add (or dubTrackDelay 0) -100)}}>-</button>
+  <div id="video-milli-secs" style="width: 80px; height: 20px; border: solid 1px; font-weight: 800; text-align: right; float: left;">
+    {{format-float (div dubTrackDelay 1000.0)}}
+  </div>
+  <button disabled={{videoStarted}} type="button" style="float: left; margin: 0px 0px 0px 5px; padding: 0px 5px 0px 5px;" onclick={{action 'setDubTrackSecs' (add (or dubTrackDelay 0) 100)}}>+</button>
 </div>
-{{/if}}
-
-{{#if (or initialPlayed showHowTo)}}
-<br>
-Video-Url: {{input id="videoUrl" value=videoUrl}} oder Video-Id: <input id="videoId" value="{{videoId}}"><br>
-Szene-Start: {{input type="number" min="0" step="1" id="startSecs" value=newStart}} Sekunden (aktuell: {{start}}{{!--; Änderung wird in Aufnahme-Verzögerung übernommen--}})<br>
-Szene-Ende: {{input type="number" min="0" step="1" id="endSecs" value=newEnd}} Sekunden (aktuell: {{end}})<br>
-<button type="button" id="setCuttingData" {{action "setVideoId"}}>Set Cutting Data</button>
-{{#if audioBuffer}}
-<br><br>
-Aufnahme-Verzögerung nach Szene-Start: {{input type="number" min="0" step="100" id="dubTrackDelayMillis" value=newDubTrackDelay}} Millisekunden (aktuell: {{dubTrackDelay}})<br>
+<br style="clear: both;">
+{{#if enableInnerDubDelay}}
 Synchronisations-Start nach Aufnahme-Start: {{input type="number" min="0" step="100" id="innerDubTrackDelayMillis" value=newInnerDubTrackDelay}} Millisekunden (aktuell: {{innerDubTrackDelay}})<br>
-<button type="button" id="setDubTrackDelay" {{action "setDubTrackSecs"}}>Set Dub-Track Delay</button>
+{{/if}}
+Aufnahme-Dauer: {{format-float (div recordingDuration 1000.0)}} Sekunden (Timecode {{format-float (div this.dubTrackDelay 1000)}} - {{format-float (div (add this.dubTrackDelay this.recordingDuration) 1000)}})<br>
+{{!--
+<button type="button" id="setDubTrackDelay" {{action "setDubTrackSecs"}}>Neuen Aufnahme-Beginn setzen</button>
+--}}
 {{/if}}
 <br>
 {{else}}
@@ -139,3 +284,20 @@ Synchronisations-Start nach Aufnahme-Start: {{input type="number" min="0" step="
 <button type="button" {{action "newDubTrack"}}>Create new Dub-Track</button>
 -->
 {{/if}}
+{{!--
+<hr>
+videoCountdownSecs = {{videoCountdownSecs}}
+{{#if playerReady}}
+{{#if (and initialPlayed displayControls)}}
+<hr>
+<div>
+  {{!--
+  {{#if videoStarted}}[VIDEO_STARTED]{{/if}}
+  {{#if videoPaused}}[VIDEO_PAUSED]{{/if}}
+  {{#if orig}}[ORIG]{{/if}}
+  }}
+  {{#if videoMilliSecsPosSeekTo}}[POS_SEEK_TO]{{/if}}
+</div>
+{{/if}}
+{{/if}}
+--}}

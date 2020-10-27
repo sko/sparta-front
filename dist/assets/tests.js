@@ -36,7 +36,23 @@ define("sparta/tests/lint/app.lint-test", [], function () {
   });
   QUnit.test('components/sound-track-creator.js', function (assert) {
     assert.expect(1);
-    assert.ok(true, 'components/sound-track-creator.js should pass ESLint\n\n20:18 - Don\'t use observers if possible (ember/no-observers)\n109:87 - Unnecessary escape character: \\/. (no-useless-escape)\n109:96 - Unnecessary escape character: \\/. (no-useless-escape)\n128:19 - Don\'t use observers if possible (ember/no-observers)\n179:7 - Unexpected console statement. (no-console)\n264:7 - Unexpected console statement. (no-console)\n312:11 - Unexpected constant condition. (no-constant-condition)\n350:7 - Unexpected console statement. (no-console)\n423:9 - Unexpected console statement. (no-console)\n428:7 - Unexpected console statement. (no-console)\n444:9 - Unexpected console statement. (no-console)\n466:7 - Unexpected console statement. (no-console)\n493:5 - Unexpected console statement. (no-console)\n501:5 - Unexpected console statement. (no-console)\n516:9 - Unexpected console statement. (no-console)\n522:15 - Unexpected console statement. (no-console)\n541:9 - Unexpected console statement. (no-console)\n580:7 - Unexpected console statement. (no-console)\n589:5 - Unexpected console statement. (no-console)\n592:7 - Unexpected console statement. (no-console)\n615:9 - Unexpected console statement. (no-console)\n625:7 - Unexpected console statement. (no-console)\n634:17 - Unexpected console statement. (no-console)\n642:19 - Unexpected console statement. (no-console)\n669:9 - Unexpected console statement. (no-console)');
+    assert.ok(false, 'components/sound-track-creator.js should pass ESLint\n\n26:18 - Don\'t use observers if possible (ember/no-observers)\n100:49 - Unexpected console statement. (no-console)\n106:7 - Don\'t introduce side-effects in computed properties (ember/no-side-effects)\n109:52 - Don\'t introduce side-effects in computed properties (ember/no-side-effects)\n112:9 - Don\'t introduce side-effects in computed properties (ember/no-side-effects)\n147:87 - Unnecessary escape character: \\/. (no-useless-escape)\n147:96 - Unnecessary escape character: \\/. (no-useless-escape)\n158:12 - \'moment\' is not defined. (no-undef)\n158:46 - \'moment\' is not defined. (no-undef)\n161:12 - \'moment\' is not defined. (no-undef)\n161:46 - \'moment\' is not defined. (no-undef)\n169:14 - \'moment\' is not defined. (no-undef)\n169:48 - \'moment\' is not defined. (no-undef)\n175:28 - \'moment\' is not defined. (no-undef)\n181:14 - \'moment\' is not defined. (no-undef)\n181:48 - \'moment\' is not defined. (no-undef)\n187:26 - \'moment\' is not defined. (no-undef)\n196:19 - Don\'t use observers if possible (ember/no-observers)\n248:7 - Unexpected console statement. (no-console)\n336:7 - Unexpected console statement. (no-console)\n398:11 - Unexpected console statement. (no-console)\n405:13 - Unexpected console statement. (no-console)\n414:11 - Unexpected constant condition. (no-constant-condition)\n450:9 - Unexpected console statement. (no-console)\n481:7 - Unexpected console statement. (no-console)\n570:9 - Unexpected console statement. (no-console)\n582:11 - Unexpected console statement. (no-console)\n599:9 - Unexpected console statement. (no-console)\n613:5 - Unexpected console statement. (no-console)\n623:9 - Unexpected console statement. (no-console)\n650:7 - Unexpected console statement. (no-console)\n684:5 - Unexpected console statement. (no-console)\n720:5 - Unexpected console statement. (no-console)\n773:9 - Unexpected console statement. (no-console)\n783:15 - Unexpected console statement. (no-console)\n825:9 - Unexpected console statement. (no-console)\n907:16 - Unexpected console statement. (no-console)\n916:7 - Unexpected console statement. (no-console)\n927:5 - Unexpected console statement. (no-console)\n930:7 - Unexpected console statement. (no-console)\n946:9 - Unexpected console statement. (no-console)\n956:7 - Unexpected console statement. (no-console)\n965:17 - Unexpected console statement. (no-console)\n973:19 - Unexpected console statement. (no-console)\n1006:9 - Unexpected console statement. (no-console)');
+  });
+  QUnit.test('helpers/format-float.js', function (assert) {
+    assert.expect(1);
+    assert.ok(true, 'helpers/format-float.js should pass ESLint\n\n');
+  });
+  QUnit.test('helpers/format-secs.js', function (assert) {
+    assert.expect(1);
+    assert.ok(false, 'helpers/format-secs.js should pass ESLint\n\n2:8 - \'moment\' is defined but never used. Allowed unused vars must match /^_/. (no-unused-vars)');
+  });
+  QUnit.test('helpers/inc.js', function (assert) {
+    assert.expect(1);
+    assert.ok(true, 'helpers/inc.js should pass ESLint\n\n');
+  });
+  QUnit.test('helpers/range.js', function (assert) {
+    assert.expect(1);
+    assert.ok(true, 'helpers/range.js should pass ESLint\n\n');
   });
   QUnit.test('resolver.js', function (assert) {
     assert.expect(1);
