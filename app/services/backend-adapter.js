@@ -13,18 +13,19 @@ export default Service.extend({
   }),
   // callbackContext ... {context: ..., success: (data) ->, error: (error) ->}
   // request: (url, method, params = null, headers = {}, isJson = true, callbackContext = null) ->
-  request(url, method, params, headers, isJson, callbackContext, noAuth) {
-    params = params || null;
-    headers = headers || {};
+  request(url, method, params, headers, isJson, callbackContext, noAuth, crossDomain) {
     noAuth = noAuth || false;
     if (typeof(isJson) == "undefined") isJson = true;
-    console.log('BackendAdapter - request: url = ' + url + ', method = ' + method + ', callbackContext? = '+(callbackContext!=null));
-    return this._promise(url, method, params, headers, isJson, callbackContext, noAuth, this.ajax);
+    // console.log('BackendAdapter - request: url = ' + url + ', method = ' + method + ', callbackContext? = '+(callbackContext!=null));
+    return this._promise(url, method, params, headers||{}, isJson, callbackContext, noAuth, this.ajax, crossDomain);
   },
-  _promise(url, method, params, headers, isJson, callbackContext, noAuth, ajax) {
+  _promise(url, method, params, headers, isJson, callbackContext, noAuth, ajax, crossDomain) {
     let promise = new Promise((resolve, reject) => {
         // console.log 'BackendAdapter - setup request ...'
         let options = {};
+
+        if (crossDomain) options.crossDomain = true;
+
         if (params != null) {
           if (isJson)
             options.data = JSON.stringify(params);
@@ -35,15 +36,17 @@ export default Service.extend({
             options.processData = false;
           }
         }
+
+        if (!noAuth && headers != null && headers['Authorization'] == null && this.get('session.session.content.authenticated.access_token') != null)
+          headers['Authorization'] = `Bearer ${this.get('session.session.content.authenticated.access_token')}`;
+
         if (isJson) {
           headers['Content-Type'] = 'application/json';
           options.headers = headers;
         }
-        if (!noAuth && headers != null && headers['Authorization'] == null && this.get('session.session.content.authenticated.access_token') != null)
-          headers['Authorization'] = `Bearer ${this.get('session.session.content.authenticated.access_token')}`;
 
         options.beforeSend = (request) => {
-            for(let hName in Object.keys(headers)) request.setRequestHeader(hName, headers[hName]);
+            for(let hName of Object.keys(headers)) request.setRequestHeader(hName, headers[hName]);
           };
         // if window.RAILS_ENV? && window.RAILS_ENV == 'test'
         //   if method.trim().toLowerCase() == 'patch'

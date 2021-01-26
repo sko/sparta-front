@@ -131,13 +131,13 @@
         <button disabled={{and videoStarted (not (and videoPaused orig))}} type="button" style="float: left; margin: 0px 5px 0px 0px; padding: 0px 5px 0px 5px;" onclick={{action 'setVideoMilliSecs' (if (and videoStarted videoPaused orig videoSnippetStartMillis) (add (mult start 1000) videoSnippetStartMillis) (mult start 1000))}}>{{if (and videoStarted videoPaused orig videoSnippetStartMillis) (format-float (div videoSnippetStartMillis 1000.0)) 0}}</button>
         --}}
         {{!-- enable/show always from 0 --}}
-        <button disabled={{or disableControls (or (and videoStarted (not (and videoPaused orig))) recording)}} type="button" style="float: left; margin: 0px 5px 0px 0px; padding: 0px 5px 0px 5px;" onclick={{action 'setVideoMilliSecs' (mult start 1000)}}>0</button>
+        <button disabled={{or disableControls (or (and videoStarted (not (and videoPaused orig))) recording) pauseVideoAfterSeekTo}} class="time-code-marker" type="button" style="float: left; margin: 0px 5px 0px 0px; padding: 0px 5px 0px 5px;" onclick={{action 'setVideoMilliSecs' (mult start 1000)}}>0</button>
         <div style="height: 20px; margin: 0px 5px 0px 5px; float: left;">oder Marker</div>
-        <button disabled={{or disableControls (or (and videoStarted (not pauseVideoOnPlay)) recording)}} type="button" style="float: left; margin: 0px 5px 0px 0px; padding: 0px 5px 0px 5px;" onclick={{action 'setVideoMilliSecs' (inc (add (mult start 1000) (or videoMilliSecs 0)) -100)}}>-</button>
-        <div id="video-milli-secs" style="width: 60px; height: 20px; border: solid 1px; font-weight: 800; text-align: right; float: left;">
+        <button disabled={{or disableControls (or (and videoStarted (not pauseVideoOnPlay)) recording) pauseVideoAfterSeekTo}} class="time-code-marker" type="button" style="float: left; margin: 0px 5px 0px 0px; padding: 0px 5px 0px 5px;" onclick={{action 'setVideoMilliSecs' (inc (add (mult start 1000) (or videoMilliSecs 0)) -100)}}>-</button>
+        <div id="video-milli-secs" class="time-code-marker" style="width: 60px; height: 20px; border-color: black !important; border: solid 1px; font-weight: 800; text-align: right; float: left;">
           {{format-float (div videoMilliSecs 1000.0)}}
         </div>
-        <button disabled={{or disableControls (or (and videoStarted (not pauseVideoOnPlay)) recording)}} type="button" style="float: left; margin: 0px 0px 0px 5px; padding: 0px 5px 0px 5px;" onclick={{action 'setVideoMilliSecs' (inc (add (mult start 1000) (or videoMilliSecs 0)) 100)}}>+</button>
+        <button disabled={{or disableControls (or (and videoStarted (not pauseVideoOnPlay)) recording) pauseVideoAfterSeekTo}} class="time-code-marker" type="button" style="float: left; margin: 0px 0px 0px 5px; padding: 0px 5px 0px 5px;" onclick={{action 'setVideoMilliSecs' (inc (add (mult start 1000) (or videoMilliSecs 0)) 100)}}>+</button>
         {{!--
         <div style="height: 20px; margin-left: 10px; float: left;">Sekunden{{!-- nach Szene-Start}}</div>
         --}}
@@ -197,14 +197,14 @@
         <tr>
           <td>
       <div style="float: left; margin: 0px 10px 0px 0px;">
-        <button id="play_orig" disabled={{or (and disableControls (not videoStarted)) (or recording (and (or videoStarted videoPaused) (not orig)))}} type="button" style="background-color: yellow;" {{action "playVideo"}}>{{#if (and videoPaused orig)}}Continue{{else}}{{#if videoStarted}}Pause{{else}}Play{{/if}}{{/if}} Orig</button>
+        <button id="play_orig" disabled={{or (and disableControls (not videoStarted)) (or recording (and (or videoStarted videoPaused) (not orig))) pauseVideoAfterSeekTo}} type="button" class="orig" {{action "playVideo"}}>{{#if (and videoPaused orig)}}Continue{{else}}{{#if videoStarted}}Pause{{else}}Play{{/if}}{{/if}} Orig</button>
       </div>
           </td>
           <td>
       <div style="float: left; margin: 0px 10px 0px 10px;">
         {{#unless recorded}}
         {{#unless (and recording videoStarted)}}
-        <button id="rec_ctrl" disabled={{or disableControls (or recording (or videoStarted recorded))}} style="background-color:rgb(147,241,164,1);" type="button" {{action "startRecording"}}>{{#unless recording}}Start Record Audio{{else}}Video wird gestartet{{/unless}}</button>
+        <button id="rec_ctrl" disabled={{or disableControls (or recording (or videoStarted recorded)) pauseVideoAfterSeekTo}} style="background-color:rgb(147,241,164,1);" type="button" {{action "startRecording"}}>{{#unless recording}}Start Record Audio{{else}}Video wird gestartet{{/unless}}</button>
         {{else}}
         <button style="background-color:rgb(255,0,0,1);" type="button" {{action "stopRecording"}}>Stop Record Audio</button>
         {{/unless}}
@@ -216,7 +216,7 @@
           <td>
       {{#if audioBuffer}}
       <div>
-        <button id="play_dub" disabled={{or disableControls (or recording videoStarted)}} type="button" style="background-color: blue;" {{action "playVideo" false}}>{{#if (and videoPaused (not orig))}}Continue{{else}}Play{{/if}} Dub</button>
+        <button id="play_dub" disabled={{or disableControls (or recording videoStarted) pauseVideoAfterSeekTo}} type="button" style="background-color: blue;" {{action "playVideo" false}}>{{#if (and videoPaused (not orig))}}Continue{{else}}Play{{/if}} Dub</button>
       </div>
       {{/if}}
           </td>
@@ -231,7 +231,7 @@ if (and videoStarted videoPaused orig videoSnippetStartMillis)
         {{!--
         <button id="play_snippet" disabled={{or recording (and videoStarted (not (and videoPaused orig)))}} type="button" style="background-color: yellow;" onclick={{action 'setVideoMilliSecs' (add (mult start 1000) videoSnippetStartMillis) true}}>Play Orig Snippet{{!-- from {{format-float (div videoSnippetStartMillis 1000.0)}}}}</button>
         --}}
-        <button id="play_snippet" disabled={{or disableControls (or recording (and videoStarted (not (and videoPaused orig))))}} type="button" style="background-color: yellow;" onclick={{action 'setVideoMilliSecs' (add (mult start 1000) videoSnippetStartMillis) true}}>Play Orig Snippet{{!-- from {{format-float (div videoSnippetStartMillis 1000.0)}}--}}</button><span style="font-size: 10px; margin-left: 10px;">{{div videoSnippetDurationMillis 1000}} Sek. ab Marker-Timecode</span>
+        <button id="play_snippet" disabled={{or disableControls (or recording (and videoStarted (not (and videoPaused orig)))) pauseVideoAfterSeekTo}} type="button" class="orig" onclick={{action 'setVideoMilliSecs' (add (mult start 1000) videoSnippetStartMillis) true}}>Play Orig Snippet{{!-- from {{format-float (div videoSnippetStartMillis 1000.0)}}--}}</button><span style="font-size: 10px; margin-left: 10px;">{{div videoSnippetDurationMillis 1000}} Sek. ab Marker-Timecode</span>
       </div>
           </td>
         </tr>
@@ -263,11 +263,14 @@ Aufnahme-Beginn ab Timecode: {{input type="number" min="0" step="100" id="dubTra
 <div>
   {{input type="hidden" id="dubTrackDelayMillis" value=dubTrackDelay}}
   <div style="height: 20px; margin: 0px 5px 0px 0px; float: left;">Aufnahme-Beginn verschieben zu Timecode</div>
-  <button disabled={{videoStarted}} type="button" style="float: left; margin: 0px 5px 0px 0px; padding: 0px 5px 0px 5px;" onclick={{action 'setDubTrackSecs' (add (or dubTrackDelay 0) -100)}}>-</button>
-  <div id="video-milli-secs" style="width: 80px; height: 20px; border: solid 1px; font-weight: 800; text-align: right; float: left;">
-    {{format-float (div dubTrackDelay 1000.0)}}
+  <button disabled={{videoStarted}} class="recording-range" type="button" style="float: left; margin: 0px 5px 0px 0px; padding: 0px 5px 0px 5px;" onclick={{action 'setDubTrackSecs' (add (or dubTrackDelay 0) -100)}}>-</button>
+  {{!--
+  <div id="video-milli-secs" {{action "setVideoMilliSecs" (add (mult start 1000) dubTrackDelay)}} style="width: 80px; height: 20px; border: solid 1px; font-weight: 800; text-align: right; float: left;">
+    <span class="recording-range">{{format-float (div dubTrackDelay 1000.0)}}</span>
   </div>
-  <button disabled={{videoStarted}} type="button" style="float: left; margin: 0px 0px 0px 5px; padding: 0px 5px 0px 5px;" onclick={{action 'setDubTrackSecs' (add (or dubTrackDelay 0) 100)}}>+</button>
+  --}}
+  <button id="video-milli-secs" class="recording-range" style="float: left;" type="button" {{action "setVideoMilliSecs" (add (mult start 1000) dubTrackDelay)}}>{{format-float (div dubTrackDelay 1000.0)}}</button>
+  <button disabled={{videoStarted}} class="recording-range" type="button" style="float: left; margin: 0px 0px 0px 5px; padding: 0px 5px 0px 5px;" onclick={{action 'setDubTrackSecs' (add (or dubTrackDelay 0) 100)}}>+</button>
 </div>
 <br style="clear: both;">
 {{#if enableInnerDubDelay}}

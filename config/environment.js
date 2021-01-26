@@ -1,7 +1,7 @@
 'use strict';
 
 module.exports = function(environment) {
-  var backendUrl = (typeof(process.env.BACKEND_URL) == "undefined"||process.env.BACKEND_URL==null) ? 'http://localhost:3003/' : process.env.BACKEND_URL;
+  var backendUrl = (typeof(process.env.BACKEND_URL) == "undefined"||process.env.BACKEND_URL==null) ? 'http://localhost:3003' : process.env.BACKEND_URL;
 
   var ENV = {
     modulePrefix: 'sparta',
@@ -31,7 +31,7 @@ module.exports = function(environment) {
     // ENV.APP.LOG_TRANSITIONS = true;
     // ENV.APP.LOG_TRANSITIONS_INTERNAL = true;
     // ENV.APP.LOG_VIEW_LOOKUPS = true;
-    ENV.APP.backendUrlPrefix = backendUrl;
+    ENV.APP.backendUrlPrefix = backendUrl + '/api';
   }
 
   if (environment === 'test') {
@@ -46,14 +46,14 @@ module.exports = function(environment) {
     ENV.APP.backendUrlPrefix = '/';
   }
 
-  if (environment === 'stage') {
-    ENV.rootURL = '/sparta/';
-    ENV.APP.backendUrlPrefix = '/';
-  }
+  // if (environment === 'stage') {
+  //   ENV.rootURL = '/sparta/';
+  //   ENV.APP.backendUrlPrefix = '/';
+  // }
 
   if (environment === 'production') {
-    ENV.rootURL = '/sparta/';
-    ENV.APP.backendUrlPrefix = '/';
+    // ENV.rootURL = '/';
+    ENV.APP.backendUrlPrefix = backendUrl + '/api';
   }
 
   return ENV;

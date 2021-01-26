@@ -38,6 +38,10 @@ define("sparta/tests/lint/app.lint-test", [], function () {
     assert.expect(1);
     assert.ok(false, 'components/sound-track-creator.js should pass ESLint\n\n26:18 - Don\'t use observers if possible (ember/no-observers)\n100:49 - Unexpected console statement. (no-console)\n106:7 - Don\'t introduce side-effects in computed properties (ember/no-side-effects)\n109:52 - Don\'t introduce side-effects in computed properties (ember/no-side-effects)\n112:9 - Don\'t introduce side-effects in computed properties (ember/no-side-effects)\n147:87 - Unnecessary escape character: \\/. (no-useless-escape)\n147:96 - Unnecessary escape character: \\/. (no-useless-escape)\n158:12 - \'moment\' is not defined. (no-undef)\n158:46 - \'moment\' is not defined. (no-undef)\n161:12 - \'moment\' is not defined. (no-undef)\n161:46 - \'moment\' is not defined. (no-undef)\n169:14 - \'moment\' is not defined. (no-undef)\n169:48 - \'moment\' is not defined. (no-undef)\n175:28 - \'moment\' is not defined. (no-undef)\n181:14 - \'moment\' is not defined. (no-undef)\n181:48 - \'moment\' is not defined. (no-undef)\n187:26 - \'moment\' is not defined. (no-undef)\n196:19 - Don\'t use observers if possible (ember/no-observers)\n248:7 - Unexpected console statement. (no-console)\n336:7 - Unexpected console statement. (no-console)\n398:11 - Unexpected console statement. (no-console)\n405:13 - Unexpected console statement. (no-console)\n414:11 - Unexpected constant condition. (no-constant-condition)\n450:9 - Unexpected console statement. (no-console)\n481:7 - Unexpected console statement. (no-console)\n570:9 - Unexpected console statement. (no-console)\n582:11 - Unexpected console statement. (no-console)\n599:9 - Unexpected console statement. (no-console)\n613:5 - Unexpected console statement. (no-console)\n623:9 - Unexpected console statement. (no-console)\n650:7 - Unexpected console statement. (no-console)\n684:5 - Unexpected console statement. (no-console)\n720:5 - Unexpected console statement. (no-console)\n773:9 - Unexpected console statement. (no-console)\n783:15 - Unexpected console statement. (no-console)\n825:9 - Unexpected console statement. (no-console)\n907:16 - Unexpected console statement. (no-console)\n916:7 - Unexpected console statement. (no-console)\n927:5 - Unexpected console statement. (no-console)\n930:7 - Unexpected console statement. (no-console)\n946:9 - Unexpected console statement. (no-console)\n956:7 - Unexpected console statement. (no-console)\n965:17 - Unexpected console statement. (no-console)\n973:19 - Unexpected console statement. (no-console)\n1006:9 - Unexpected console statement. (no-console)');
   });
+  QUnit.test('controllers/application.js', function (assert) {
+    assert.expect(1);
+    assert.ok(true, 'controllers/application.js should pass ESLint\n\n');
+  });
   QUnit.test('helpers/format-float.js', function (assert) {
     assert.expect(1);
     assert.ok(true, 'helpers/format-float.js should pass ESLint\n\n');
@@ -64,7 +68,7 @@ define("sparta/tests/lint/app.lint-test", [], function () {
   });
   QUnit.test('services/backend-adapter.js', function (assert) {
     assert.expect(1);
-    assert.ok(true, 'services/backend-adapter.js should pass ESLint\n\n21:5 - Unexpected console statement. (no-console)');
+    assert.ok(true, 'services/backend-adapter.js should pass ESLint\n\n');
   });
   QUnit.test('services/record-audio.js', function (assert) {
     assert.expect(1);

@@ -264,7 +264,7 @@ export default Component.extend(LoadingIndicator, {
       } else {
         let dubIdMatch = (location.search.match(/[?&]dubId=([^&]+)/) || [null, '-1'])
         let url = $('#dub-data-url').val().replace(/:dubId/, dubIdMatch[1])
-        this.get('backendAdapter').request(url, 'GET').then((dubData) => {
+        this.get('backendAdapter').request(url, 'GET', null, null, null, null, false, true).then((dubData) => {
             this.set('videoId', dubData.video_id);
             this.set('videoTitle', dubData.video_title);
             this.set('origDubTrackStartSecs', dubData.start_secs / 100 + dubData.delay_millis / 1000);
@@ -858,7 +858,7 @@ export default Component.extend(LoadingIndicator, {
 
         this.set('recorded', false);
 
-        if (this.recordingDuration == null) {
+        if (this.recordingDuration == null/* && this.audioBuffer.buffer != null*/) {
           this.set('recordingDuration', this.audioBuffer.buffer.duration * 1000);
           schedule("afterRender", () => this.renderRecordedRange(this.start + this.dubTrackDelay / 1000));
         }
@@ -1002,7 +1002,7 @@ export default Component.extend(LoadingIndicator, {
     let formData = this.setupForm();
     let url = $('#publish-url').val();
     this.startWaiting();
-    this.get('backendAdapter').request(url, 'POST', formData, null, false).then((response) => {
+    this.get('backendAdapter').request(url, 'POST', formData, null, false, null, false, true).then((response) => {
         console.log('response.message OK = '+response.success);
         callBack(response.dub_data);
         this.stopWaiting();

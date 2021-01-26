@@ -43,3 +43,15 @@ html.busy body #wait {
   z-index: -10;
   background-color: rgb(147, 241, 164, 1); /*rgb(255,0,0,0.9);*/
 }
+
+.orig {
+  background-color: light-grey;
+}
+
+.time-code-marker {
+  color: red;
+}
+
+.recording-range {
+  background-color: rgb(147,241,164,1);
+}

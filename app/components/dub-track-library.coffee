@@ -10,7 +10,7 @@ DubTrackLibraryComponent = Ember.Component.extend LoadingIndicator, ClipboardAct
   dubTrackList: []
   loadLibrary: ( ->
     url = $('#dub-list-url').val()
-    @.get('backendAdapter').request(url, 'GET').then (dubTrackList) =>
+    @.get('backendAdapter').request(url, 'GET', null, null, null, null, false, true).then (dubTrackList) =>
         for dubTrack in dubTrackList
           if (dubIdMatch = location.search.match(/([?&])dubId=[^&]+/))?
             dubTrack.dubTrackUrl = location.href.replace(/library\/?/, '').replace(/([?&]dubId=)[^&]+/, '$1'+dubTrack.id)
